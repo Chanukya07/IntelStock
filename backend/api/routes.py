@@ -1,9 +1,14 @@
 """API routes for IntelStock MVP surface."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from backend.database import (
+    get_db, PortfolioRepository, WatchlistRepository,
+    ChatRepository, StockQuoteRepository, InsightRepository
+)
 from backend.rag.retriever import RAGRetriever
 from backend.services.chat_service import ChatService
 from backend.services.insight_service import InsightService
@@ -34,6 +39,18 @@ class RAGQueryRequest(BaseModel):
     query: str
     symbol: str = ""
     top_k: int = 5
+
+
+class PortfolioItem(BaseModel):
+    symbol: str
+    quantity: int
+    average_cost: float
+
+
+class WatchlistItem(BaseModel):
+    symbol: str
+    alert_price: float | None = None
+    alert_type: str | None = None
 
 
 @router.get("/stock")
@@ -86,13 +103,69 @@ def chat_stream(payload: ChatRequest) -> StreamingResponse:
 
 
 @router.get("/portfolio")
-def get_portfolio(user_id: int) -> dict[str, int | str]:
-    return {"user_id": user_id, "message": "Portfolio analytics placeholder"}
+def get_portfolio(user_id: int, db: Session = Depends(get_db)) -> dict[str, object]:
+    """Get user's portfolio."""
+    repo = PortfolioRepository(db)
+    portfolio = repo.get_user_portfolio(user_id)
+    total_value = sum(p.current_price * p.quantity for p in portfolio if p.current_price)
+    return {
+        "user_id": user_id,
+        "portfolio": [
+            {
+                "id": p.id,
+                "symbol": p.symbol,
+                "quantity": p.quantity,
+                "average_cost": p.average_cost,
+                "current_price": p.current_price,
+                "gain_loss": (p.current_price - p.average_cost) * p.quantity if p.current_price else 0,
+            }
+            for p in portfolio
+        ],
+        "total_value": total_value,
+    }
+
+
+@router.post("/portfolio")
+def add_portfolio(user_id: int, item: PortfolioItem, db: Session = Depends(get_db)) -> dict[str, object]:
+    """Add stock to portfolio."""
+    repo = PortfolioRepository(db)
+    portfolio = repo.create(user_id, item.symbol, item.quantity, item.average_cost)
+    return {"status": "ok", "portfolio_id": portfolio.id}
 
 
 @router.get("/watchlist")
-def get_watchlist(user_id: int) -> dict[str, int | str]:
-    return {"user_id": user_id, "message": "Watchlist placeholder"}
+def get_watchlist(user_id: int, db: Session = Depends(get_db)) -> dict[str, object]:
+    """Get user's watchlist."""
+    repo = WatchlistRepository(db)
+    watchlist = repo.get_user_watchlist(user_id)
+    return {
+        "user_id": user_id,
+        "watchlist": [
+            {
+                "id": w.id,
+                "symbol": w.symbol,
+                "alert_price": w.alert_price,
+                "alert_type": w.alert_type,
+            }
+            for w in watchlist
+        ],
+    }
+
+
+@router.post("/watchlist")
+def add_watchlist(user_id: int, item: WatchlistItem, db: Session = Depends(get_db)) -> dict[str, object]:
+    """Add stock to watchlist."""
+    repo = WatchlistRepository(db)
+    watchlist = repo.create(user_id, item.symbol, item.alert_price, item.alert_type)
+    return {"status": "ok", "watchlist_id": watchlist.id}
+
+
+@router.delete("/watchlist/{watchlist_id}")
+def remove_watchlist(watchlist_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
+    """Remove stock from watchlist."""
+    repo = WatchlistRepository(db)
+    success = repo.delete(watchlist_id)
+    return {"status": "ok" if success else "error", "message": "Item removed" if success else "Item not found"}
 
 
 @router.post("/rag/index")
