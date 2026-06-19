@@ -1,5 +1,6 @@
 """IntelStock — Main Streamlit entry point."""
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
@@ -11,28 +12,49 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Clear any stuck sidebar-collapsed state from browser localStorage
+components.html("""
+<script>
+  try {
+    // Remove Streamlit's persisted sidebar-collapsed key so it always opens
+    Object.keys(window.parent.localStorage).forEach(function(k) {
+      if (k.toLowerCase().includes('sidebar')) {
+        window.parent.localStorage.removeItem(k);
+      }
+    });
+  } catch(e) {}
+</script>
+""", height=0)
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap');
 html,body,[class*="css"]{font-family:'Inter',sans-serif!important;}
 #MainMenu,footer,header{visibility:hidden;}
 
-/* Hide Streamlit's auto-generated page nav in sidebar — but keep the collapse toggle */
+/* Hide Streamlit's auto-generated page nav only — NOT the collapse toggle */
 [data-testid="stSidebarNav"]{display:none!important;}
+
+/* Style the collapse/expand toggle so it matches the dark theme */
+[data-testid="collapsedControl"] {
+  background-color:#0d1117!important;
+  border-right:1px solid rgba(255,255,255,0.07)!important;
+}
+[data-testid="collapsedControl"] button,
+[data-testid="collapsedControl"] svg {
+  color:#64748b!important;
+  stroke:#64748b!important;
+}
+[data-testid="collapsedControl"]:hover button,
+[data-testid="collapsedControl"]:hover svg {
+  color:#00d4aa!important;
+  stroke:#00d4aa!important;
+}
 
 .stApp{background:#080c12!important;}
 [data-testid="stSidebar"]{background:#0d1117!important;border-right:1px solid rgba(255,255,255,0.07)!important;}
 [data-testid="stSidebar"] *{color:#e2e8f0!important;}
 [data-testid="stSidebarContent"]{padding:0!important;}
-
-/* Style the collapse/expand toggle button */
-[data-testid="collapsedControl"]{
-  background:#0d1117!important;
-  border:1px solid rgba(255,255,255,0.07)!important;
-  border-left:none!important;
-  color:#64748b!important;
-}
-[data-testid="collapsedControl"]:hover{color:#00d4aa!important;background:#111820!important;}
 
 /* Page links inside sidebar */
 [data-testid="stSidebar"] [data-testid="stPageLink"] a {
@@ -45,7 +67,6 @@ html,body,[class*="css"]{font-family:'Inter',sans-serif!important;}
 [data-testid="stSidebar"] [data-testid="stPageLink"] a:hover {
   background:rgba(255,255,255,0.05)!important;color:#e2e8f0!important;
 }
-[data-testid="stSidebar"] [data-testid="stPageLink"][aria-current="page"] a,
 [data-testid="stSidebar"] [data-testid="stPageLink"] a[aria-current="page"] {
   background:rgba(0,212,170,0.1)!important;color:#00d4aa!important;
   border:1px solid rgba(0,212,170,0.2)!important;
