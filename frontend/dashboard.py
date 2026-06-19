@@ -183,7 +183,7 @@ with col_chart:
         yaxis=dict(gridcolor='rgba(255,255,255,0.04)', color='#64748b', tickfont=dict(size=10)),
         showlegend=False, hovermode='x unified'
     )
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(fig, width="stretch", config={'displayModeBar': False})
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col_movers:
@@ -224,5 +224,5 @@ fig2.update_layout(
     yaxis=dict(showgrid=False, visible=False),
     showlegend=False,
 )
-st.plotly_chart(fig2, use_container_width=True, config={'displayModeBar': False})
+st.plotly_chart(fig2, width="stretch", config={'displayModeBar': False})
 st.markdown("</div>", unsafe_allow_html=True)

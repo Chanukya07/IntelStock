@@ -64,7 +64,7 @@ with col_radar:
         height=320,
         margin=dict(l=40,r=40,t=20,b=20)
     )
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(fig, width="stretch", config={'displayModeBar': False})
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col_news:

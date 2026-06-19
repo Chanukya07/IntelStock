@@ -34,7 +34,7 @@ qp_cols = st.columns(4)
 quick_prompts = ["Analyze RELIANCE", "Nifty outlook today", "Top IT stocks to watch", "HDFC near-term view"]
 for i, qp in enumerate(quick_prompts):
     with qp_cols[i]:
-        if st.button(qp, use_container_width=True, key=f"qp_{i}"):
+        if st.button(qp, width="stretch", key=f"qp_{i}"):
             st.session_state.setdefault('messages', [])
             st.session_state.messages.append({"role": "user", "content": qp})
 st.markdown("</div>", unsafe_allow_html=True)
@@ -91,7 +91,7 @@ with st.form("chat_form", clear_on_submit=True):
     with col_inp:
         user_input = st.text_input("", placeholder="Ask about any stock, sector or market condition...", label_visibility="collapsed")
     with col_send:
-        submitted = st.form_submit_button("Send ➤", use_container_width=True)
+        submitted = st.form_submit_button("Send ➤", width="stretch")
 
 if submitted and user_input.strip():
     st.session_state.messages.append({"role": "user", "content": user_input})
