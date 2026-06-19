@@ -1,6 +1,5 @@
 """IntelStock — Main Streamlit entry point."""
 import streamlit as st
-import streamlit.components.v1 as components
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
@@ -12,25 +11,12 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Clear any stuck sidebar-collapsed state from browser localStorage
-components.html("""
-<script>
-  try {
-    // Remove Streamlit's persisted sidebar-collapsed key so it always opens
-    Object.keys(window.parent.localStorage).forEach(function(k) {
-      if (k.toLowerCase().includes('sidebar')) {
-        window.parent.localStorage.removeItem(k);
-      }
-    });
-  } catch(e) {}
-</script>
-""", height=0)
-
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap');
 html,body,[class*="css"]{font-family:'Inter',sans-serif!important;}
-#MainMenu,footer,header{visibility:hidden;}
+#MainMenu,footer{visibility:hidden;}
+header{background:transparent!important;}
 
 /* Hide Streamlit's auto-generated page nav only — NOT the collapse toggle */
 [data-testid="stSidebarNav"]{display:none!important;}
