@@ -5,6 +5,7 @@ from __future__ import annotations
 from openai import OpenAI
 
 from backend.config import OPENROUTER_API_BASE, OPENROUTER_API_KEY, LLM_MODEL
+from backend.rag.retriever import RAGRetriever
 from backend.services.market_data_service import MarketDataService
 from backend.services.news_intelligence_service import NewsIntelligenceService
 from backend.services.sentiment_service import SentimentService
@@ -16,9 +17,16 @@ class InsightService:
         self.news_service = NewsIntelligenceService()
         self.sentiment_service = SentimentService()
         self.client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_API_BASE)
+        self.rag_retriever = RAGRetriever()
 
-    def _generate_ai_recommendation(self, quote: dict, sentiment: dict, news_text: str, query: str | None = None) -> tuple[str, list[str], list[str]]:
-        """Generate AI-powered recommendation, catalysts, and risks using OpenRouter."""
+    def _generate_ai_recommendation(self, quote: dict, sentiment: dict, news_text: str, query: str | None = None, symbol: str = "") -> tuple[str, list[str], list[str]]:
+        """Generate AI-powered recommendation using RAG context from retrieved documents."""
+        rag_context = ""
+        if symbol:
+            self.rag_retriever.index_news(news_text.split('\n') if news_text else [], symbol=symbol)
+            retrieved_query = query if query else f"Investment analysis for {quote['name']}"
+            rag_context = self.rag_retriever.retrieve_symbol_context(symbol, retrieved_query, top_k=3)
+
         prompt = f"""You are an expert stock analyst for Indian markets (NSE/BSE). Analyze the following data and provide investment insights:
 
 Stock: {quote['name']} ({quote['symbol']})
@@ -29,12 +37,14 @@ Resistance: ₹{quote['resistance']:,}
 Sentiment: {sentiment['label']}
 Confidence: {sentiment['confidence']:.2f}
 
-Recent News: {news_text[:500] if news_text else 'No recent news'}
+Recent News: {news_text[:300] if news_text else 'No recent news'}
+
+{"RETRIEVED CONTEXT FOR DEEPER ANALYSIS:" + rag_context[:500] if rag_context else ""}
 
 User Query: {query if query else 'General analysis'}
 
 Provide your response in this exact format:
-RECOMMENDATION: [specific actionable recommendation]
+RECOMMENDATION: [specific actionable recommendation based on the context]
 CATALYSTS: [list 2-3 positive catalysts separated by |]
 RISKS: [list 2-3 risks separated by |]"""
 
@@ -75,8 +85,8 @@ RISKS: [list 2-3 risks separated by |]"""
         change_pct = float(quote["change_pct"])
         trend_bias = "Bullish" if change_pct > 0.75 else "Bearish" if change_pct < -0.75 else "Neutral"
 
-        # Generate AI-powered insights
-        recommendation, catalysts, risks = self._generate_ai_recommendation(quote, sentiment, news_text, query)
+        # Generate AI-powered insights with RAG context
+        recommendation, catalysts, risks = self._generate_ai_recommendation(quote, sentiment, news_text, query, symbol)
 
         summary = (
             f"{quote['name']} is showing {trend_bias.lower()} momentum with price at ₹{quote['price']:,}. "

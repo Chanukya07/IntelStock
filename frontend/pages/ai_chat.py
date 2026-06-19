@@ -1,8 +1,9 @@
 """AI Chat page."""
 import streamlit as st
 import time
+import requests
 
-from backend.services.insight_service import InsightService
+from backend.services.chat_service import ChatService
 
 from frontend.sidebar import inject_styles, render_sidebar
 
@@ -23,7 +24,7 @@ st.markdown("""
 
 render_sidebar()
 
-insight_service = InsightService()
+chat_service = ChatService()
 
 st.markdown("<h1 style='color:#e2e8f0;font-size:1.6rem;font-weight:700;margin-bottom:4px;'>AI Stock Assistant</h1>", unsafe_allow_html=True)
 st.markdown("<div style='color:#64748b;font-size:0.8rem;margin-bottom:20px;'>Ask about any NSE/BSE stock, sector, or market condition</div>", unsafe_allow_html=True)
@@ -55,14 +56,8 @@ def infer_symbol(msg: str) -> str:
 
 def build_ai_response(msg: str) -> dict[str, object]:
     symbol = infer_symbol(msg)
-    report = insight_service.generate_report(symbol, msg)
-    response_lines = [
-        f"**{report['name']}** · {report['quote']['sentiment']} bias",
-        report["summary"],
-        f"Recommendation: **{report['recommendation']}**",
-        f"Support / resistance: ₹{report['quote']['support']:,} / ₹{report['quote']['resistance']:,}",
-    ]
-    return {"symbol": symbol, "report": report, "content": "\n\n".join(response_lines)}
+    response = chat_service.chat(msg)
+    return {"symbol": symbol, "response": response, "content": response.get("message", "")}
 
 # Display messages
 for msg in st.session_state.messages:
@@ -71,14 +66,14 @@ for msg in st.session_state.messages:
         st.markdown("<div class='msg-meta' style='text-align:right;'>You</div>", unsafe_allow_html=True)
     else:
         st.markdown(f"<div style='display:flex;margin-bottom:12px;gap:10px;'><div style='width:28px;height:28px;border-radius:50%;background:rgba(0,212,170,0.12);display:grid;place-items:center;font-size:0.6rem;font-weight:700;color:#00d4aa;flex-shrink:0;'>AI</div><div class='ai-msg'>{msg['content']}</div></div>", unsafe_allow_html=True)
-        report = msg.get('report')
-        if report:
+        response = msg.get('response')
+        if response:
             st.markdown(
                 f"""
                 <div style='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:-4px 0 16px 38px;'>
-                  <div class='intel-card' style='margin:0;padding:14px 16px;'><div style='font-size:0.7rem;color:#64748b;'>Confidence</div><div style='font-size:1.2rem;font-weight:700;color:#e2e8f0;'>{report['confidence']}</div></div>
-                  <div class='intel-card' style='margin:0;padding:14px 16px;'><div style='font-size:0.7rem;color:#64748b;'>Signal</div><div style='font-size:1.2rem;font-weight:700;color:#e2e8f0;'>{report['sentiment']['label']}</div></div>
-                  <div class='intel-card' style='margin:0;padding:14px 16px;'><div style='font-size:0.7rem;color:#64748b;'>Action</div><div style='font-size:1.0rem;font-weight:700;color:#e2e8f0;'>{report['recommendation']}</div></div>
+                  <div class='intel-card' style='margin:0;padding:14px 16px;'><div style='font-size:0.7rem;color:#64748b;'>Confidence</div><div style='font-size:1.2rem;font-weight:700;color:#e2e8f0;'>{response['confidence']}</div></div>
+                  <div class='intel-card' style='margin:0;padding:14px 16px;'><div style='font-size:0.7rem;color:#64748b;'>Symbol</div><div style='font-size:1.2rem;font-weight:700;color:#e2e8f0;'>{response['symbol']}</div></div>
+                  <div class='intel-card' style='margin:0;padding:14px 16px;'><div style='font-size:0.7rem;color:#64748b;'>Action</div><div style='font-size:1.0rem;font-weight:700;color:#e2e8f0;'>{response['recommendation']}</div></div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -95,10 +90,8 @@ with st.form("chat_form", clear_on_submit=True):
 
 if submitted and user_input.strip():
     st.session_state.messages.append({"role": "user", "content": user_input})
-    with st.spinner("IntelStock AI is thinking..."):
-        time.sleep(0.6)
     response = build_ai_response(user_input)
-    st.session_state.messages.append({"role": "assistant", "content": response['content'], "report": response['report']})
+    st.session_state.messages.append({"role": "assistant", "content": response['content'], "response": response['response']})
     st.rerun()
 
 # Welcome state
