@@ -11,23 +11,27 @@ class ChatRequest(BaseModel):
 
 
 @router.get("/stock")
-def get_stock() -> dict[str, str]:
-    return {"message": "Market data service placeholder"}
+def get_stock(symbol: str) -> dict[str, str]:
+    return {"symbol": symbol, "message": "Market data service placeholder"}
 
 
 @router.get("/news")
-def get_news() -> dict[str, str]:
-    return {"message": "News intelligence service placeholder"}
+def get_news(symbol: str | None = None, source: str | None = None) -> dict[str, str | None]:
+    return {
+        "symbol": symbol,
+        "source": source,
+        "message": "News intelligence service placeholder",
+    }
 
 
 @router.get("/sentiment")
-def get_sentiment() -> dict[str, str]:
-    return {"message": "Sentiment analysis service placeholder"}
+def get_sentiment(symbol: str) -> dict[str, str]:
+    return {"symbol": symbol, "message": "Sentiment analysis service placeholder"}
 
 
 @router.get("/insights")
-def get_insights() -> dict[str, str]:
-    return {"message": "LLM insight engine placeholder"}
+def get_insights(symbol: str) -> dict[str, str]:
+    return {"symbol": symbol, "message": "LLM insight engine placeholder"}
 
 
 @router.post("/chat")
@@ -36,10 +40,10 @@ def chat(payload: ChatRequest) -> dict[str, str]:
 
 
 @router.get("/portfolio")
-def get_portfolio() -> dict[str, str]:
-    return {"message": "Portfolio analytics placeholder"}
+def get_portfolio(user_id: int) -> dict[str, int | str]:
+    return {"user_id": user_id, "message": "Portfolio analytics placeholder"}
 
 
 @router.get("/watchlist")
-def get_watchlist() -> dict[str, str]:
-    return {"message": "Watchlist placeholder"}
+def get_watchlist(user_id: int) -> dict[str, int | str]:
+    return {"user_id": user_id, "message": "Watchlist placeholder"}
