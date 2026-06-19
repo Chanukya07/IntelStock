@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IntelStock — AI Stock Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --text-xs:   clamp(0.75rem,  0.7rem  + 0.25vw, 0.875rem);
+  --text-sm:   clamp(0.8125rem,0.78rem + 0.2vw,  0.9375rem);
+  --text-base: clamp(0.9375rem,0.9rem  + 0.2vw,  1rem);
+  --text-lg:   clamp(1.0625rem,1rem    + 0.4vw,  1.25rem);
+  --text-xl:   clamp(1.25rem,  1.1rem  + 0.8vw,  1.75rem);
+  --space-1:0.25rem;--space-2:0.5rem;--space-3:0.75rem;--space-4:1rem;
+  --space-5:1.25rem;--space-6:1.5rem;--space-8:2rem;--space-10:2.5rem;
+  --space-12:3rem;--space-16:4rem;
+  --radius-sm:0.25rem;--radius-md:0.5rem;--radius-lg:0.75rem;--radius-xl:1rem;
+  --transition:180ms cubic-bezier(0.16,1,0.3,1);
+  --sidebar-w:220px;
+}
+[data-theme="dark"] {
+  --bg:#080c12;--surface:#0d1117;--surface-2:#111820;--surface-3:#161e2a;
+  --border:rgba(255,255,255,0.07);--border-2:rgba(255,255,255,0.12);
+  --text:#e2e8f0;--text-muted:#64748b;--text-faint:#334155;
+  --accent:#00d4aa;--accent-dim:rgba(0,212,170,0.12);--accent-glow:rgba(0,212,170,0.25);
+  --red:#f87171;--red-dim:rgba(248,113,113,0.12);
+  --green:#34d399;--green-dim:rgba(52,211,153,0.12);
+  --gold:#fbbf24;--blue:#60a5fa;--shadow-lg:0 20px 60px rgba(0,0,0,0.6);
+}
+[data-theme="light"] {
+  --bg:#f1f5f9;--surface:#ffffff;--surface-2:#f8fafc;--surface-3:#f1f5f9;
+  --border:rgba(0,0,0,0.08);--border-2:rgba(0,0,0,0.14);
+  --text:#0f172a;--text-muted:#64748b;--text-faint:#cbd5e1;
+  --accent:#059669;--accent-dim:rgba(5,150,105,0.1);--accent-glow:rgba(5,150,105,0.2);
+  --red:#ef4444;--red-dim:rgba(239,68,68,0.1);
+  --green:#10b981;--green-dim:rgba(16,185,129,0.1);
+  --gold:#d97706;--blue:#3b82f6;--shadow-lg:0 8px 32px rgba(0,0,0,0.12);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+body{font-family:var(--font-body);font-size:var(--text-base);color:var(--text);background:var(--bg);min-height:100dvh;overflow-x:hidden}
+#bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.55}
+[data-theme="light"] #bg-canvas{opacity:0.18}
+.app{display:flex;min-height:100dvh;position:relative;z-index:1}
+.sidebar{width:var(--sidebar-w);min-height:100dvh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;backdrop-filter:blur(20px)}
+.sidebar-logo{padding:var(--space-6) var(--space-5);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:var(--space-3)}
+.logo-mark{width:32px;height:32px;flex-shrink:0}
+.logo-text{font-size:var(--text-lg);font-weight:700;letter-spacing:-0.02em;color:var(--text)}
+.logo-text span{color:var(--accent)}
+.sidebar-nav{flex:1;padding:var(--space-4) var(--space-3);display:flex;flex-direction:column;gap:var(--space-1)}
+.nav-label{font-size:0.65rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);padding:var(--space-4) var(--space-3) var(--space-2)}
+.nav-item{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:500;color:var(--text-muted);cursor:pointer;transition:all var(--transition);border:none;background:none;width:100%;text-align:left;position:relative}
+.nav-item:hover{color:var(--text);background:var(--surface-3)}
+.nav-item.active{color:var(--accent);background:var(--accent-dim)}
+.nav-item.active::before{content:"";position:absolute;left:0;top:20%;bottom:20%;width:2px;background:var(--accent);border-radius:0 2px 2px 0}
+.nav-icon{width:16px;height:16px;opacity:0.7;flex-shrink:0}
+.nav-item.active .nav-icon{opacity:1}
+.sidebar-footer{padding:var(--space-4) var(--space-3);border-top:1px solid var(--border);display:flex;align-items:center;gap:var(--space-3)}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--blue));display:grid;place-items:center;font-size:0.7rem;font-weight:700;color:#fff;flex-shrink:0}
+.avatar-info{flex:1;min-width:0}
+.avatar-name{font-size:var(--text-xs);font-weight:600;color:var(--text)}
+.avatar-role{font-size:0.65rem;color:var(--text-muted);margin-top:1px}
+.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{height:60px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 var(--space-8);gap:var(--space-4);position:sticky;top:0;z-index:50;backdrop-filter:blur(20px)}
+.topbar-title{font-size:var(--text-xl);font-weight:700;letter-spacing:-0.025em;flex:1}
+.search-bar{display:flex;align-items:center;gap:var(--space-2);background:var(--surface-3);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--space-2) var(--space-4);width:240px;transition:all var(--transition)}
+.search-bar:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+.search-bar input{background:none;border:none;outline:none;font-size:var(--text-sm);color:var(--text);font-family:var(--font-body);width:100%}
+.search-bar input::placeholder{color:var(--text-muted)}
+.topbar-actions{display:flex;align-items:center;gap:var(--space-2)}
+.icon-btn{width:36px;height:36px;border-radius:var(--radius-md);display:grid;place-items:center;border:1px solid var(--border);background:var(--surface-3);color:var(--text-muted);cursor:pointer;transition:all var(--transition);position:relative}
+.icon-btn:hover{color:var(--text);border-color:var(--border-2)}
+.notif-dot{position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--red);border:2px solid var(--surface)}
+.badge{display:inline-flex;align-items:center;gap:var(--space-1);padding:2px var(--space-2);border-radius:var(--radius-sm);font-size:0.65rem;font-weight:600;letter-spacing:0.03em}
+.badge-live{background:rgba(248,113,113,0.15);color:var(--red)}
+.badge-live::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--red);animation:pulse-red 1.5s infinite}
+@keyframes pulse-red{0%,100%{opacity:1}50%{opacity:0.4}}
+.page{display:none;padding:var(--space-8);flex-direction:column;gap:var(--space-6)}
+.page.active{display:flex}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.page.active{animation:fadeSlide 0.3s cubic-bezier(0.16,1,0.3,1) both}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4)}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:var(--space-5);display:flex;flex-direction:column;gap:var(--space-3);transition:all var(--transition);cursor:default;position:relative;overflow:hidden}
+.kpi-card::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent-glow),transparent);opacity:0;transition:opacity var(--transition)}
+.kpi-card:hover::before{opacity:1}
+.kpi-card:hover{border-color:var(--border-2);box-shadow:0 4px 24px rgba(0,0,0,0.15)}
+.kpi-header{display:flex;align-items:center;justify-content:space-between}
+.kpi-label{font-size:var(--text-xs);font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em}
+.kpi-icon{width:28px;height:28px;border-radius:var(--radius-md);background:var(--accent-dim);display:grid;place-items:center;color:var(--accent)}
+.kpi-value{font-size:var(--text-xl);font-weight:700;letter-spacing:-0.03em;font-variant-numeric:tabular-nums}
+.kpi-change{display:flex;align-items:center;gap:var(--space-1);font-size:var(--text-xs);font-weight:600}
+.kpi-change.up{color:var(--green)}
+.kpi-change.down{color:var(--red)}
+.kpi-spark{height:32px;margin-top:var(--space-1)}
+.chart-grid{display:grid;grid-template-columns:2fr 1fr;gap:var(--space-4)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);overflow:hidden}
+.card-header{padding:var(--space-5) var(--space-6) var(--space-4);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.card-title{font-size:var(--text-base);font-weight:600;letter-spacing:-0.01em}
+.card-subtitle{font-size:var(--text-xs);color:var(--text-muted);margin-top:2px}
+.card-body{padding:var(--space-6)}
+.chart-tabs{display:flex;gap:var(--space-1);background:var(--surface-3);padding:3px;border-radius:var(--radius-md)}
+.chart-tab{padding:4px var(--space-3);border-radius:calc(var(--radius-md) - 2px);font-size:var(--text-xs);font-weight:600;color:var(--text-muted);cursor:pointer;border:none;background:none;transition:all var(--transition)}
+.chart-tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.15)}
+.chart-wrap{position:relative;height:260px}
+.movers-list{display:flex;flex-direction:column;gap:var(--space-2)}
+.mover-row{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3);border-radius:var(--radius-md);transition:background var(--transition);cursor:pointer}
+.mover-row:hover{background:var(--surface-3)}
+.mover-logo{width:32px;height:32px;border-radius:var(--radius-md);background:var(--surface-3);border:1px solid var(--border);display:grid;place-items:center;font-size:0.6rem;font-weight:700;color:var(--text-muted);flex-shrink:0}
+.mover-info{flex:1;min-width:0}
+.mover-name{font-size:var(--text-sm);font-weight:600}
+.mover-sector{font-size:var(--text-xs);color:var(--text-muted)}
+.mover-price{text-align:right}
+.mover-val{font-size:var(--text-sm);font-weight:600;font-variant-numeric:tabular-nums}
+.mover-chg{font-size:var(--text-xs);font-weight:600}
+.mover-chg.up{color:var(--green)}
+.mover-chg.down{color:var(--red)}
+.watchlist-table{width:100%;border-collapse:collapse}
+.watchlist-table th{text-align:left;font-size:var(--text-xs);font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--border)}
+.watchlist-table td{padding:var(--space-3) var(--space-4);font-size:var(--text-sm);border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums}
+.watchlist-table tr:last-child td{border-bottom:none}
+.watchlist-table tr:hover td{background:var(--surface-3)}
+.stock-symbol{font-weight:700;color:var(--accent)}
+.stock-name{font-size:var(--text-xs);color:var(--text-muted)}
+.pill{display:inline-flex;padding:2px var(--space-2);border-radius:var(--radius-full);font-size:0.65rem;font-weight:600}
+.pill.up{background:var(--green-dim);color:var(--green)}
+.pill.down{background:var(--red-dim);color:var(--red)}
+.mini-bar{height:4px;border-radius:2px;background:var(--surface-3);overflow:hidden;margin-top:var(--space-1)}
+.mini-bar-fill{height:100%;border-radius:2px;transition:width 1s cubic-bezier(0.16,1,0.3,1)}
+.sentiment-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4)}
+.sentiment-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:var(--space-5)}
+.sentiment-label{font-size:var(--text-xs);font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:var(--space-3)}
+.sentiment-score{font-size:var(--text-xl);font-weight:700;margin-bottom:var(--space-2)}
+.sentiment-bar{height:6px;border-radius:3px;background:var(--surface-3);overflow:hidden;margin-bottom:var(--space-2)}
+.sentiment-fill{height:100%;border-radius:3px}
+.sentiment-fill.bullish{background:linear-gradient(90deg,var(--green),var(--accent))}
+.sentiment-fill.bearish{background:linear-gradient(90deg,var(--red),#f97316)}
+.news-list{display:flex;flex-direction:column;gap:var(--space-3)}
+.news-item{display:flex;gap:var(--space-4);padding:var(--space-4);border-radius:var(--radius-lg);border:1px solid var(--border);background:var(--surface);transition:all var(--transition);cursor:pointer}
+.news-item:hover{border-color:var(--border-2);background:var(--surface-3)}
+.news-meta{display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-2)}
+.news-source{font-size:0.65rem;font-weight:600;color:var(--accent)}
+.news-time{font-size:0.65rem;color:var(--text-muted)}
+.news-title{font-size:var(--text-sm);font-weight:500;line-height:1.4;margin-bottom:var(--space-2)}
+.news-tags{display:flex;gap:var(--space-2);flex-wrap:wrap}
+.news-tag{font-size:0.6rem;font-weight:600;padding:2px 6px;border-radius:var(--radius-sm);background:var(--accent-dim);color:var(--accent)}
+.news-sentiment{font-size:0.65rem;font-weight:600;padding:2px 8px;border-radius:var(--radius-full)}
+.ns-bull{background:var(--green-dim);color:var(--green)}
+.ns-bear{background:var(--red-dim);color:var(--red)}
+.ns-neu{background:var(--surface-3);color:var(--text-muted)}
+.chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 130px)}
+.chat-messages{flex:1;overflow-y:auto;padding:var(--space-6);display:flex;flex-direction:column;gap:var(--space-4)}
+.chat-messages::-webkit-scrollbar{width:4px}
+.chat-messages::-webkit-scrollbar-track{background:transparent}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:2px}
+.msg{display:flex;gap:var(--space-3);max-width:80%}
+.msg.user{flex-direction:row-reverse;align-self:flex-end}
+.msg-avatar{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-size:0.6rem;font-weight:700}
+.msg-avatar.ai{background:var(--accent-dim);color:var(--accent)}
+.msg-avatar.user{background:linear-gradient(135deg,var(--accent),var(--blue));color:#fff}
+.msg-bubble{padding:var(--space-3) var(--space-4);border-radius:var(--radius-lg);font-size:var(--text-sm);line-height:1.6}
+.msg.ai .msg-bubble{background:var(--surface);border:1px solid var(--border)}
+.msg.user .msg-bubble{background:var(--accent-dim);border:1px solid rgba(0,212,170,0.2)}
+.msg-time{font-size:0.6rem;color:var(--text-faint);margin-top:var(--space-1);text-align:right}
+.chat-input-area{padding:var(--space-4) var(--space-6);border-top:1px solid var(--border)}
+.chat-input-wrap{display:flex;gap:var(--space-3);background:var(--surface-3);border:1px solid var(--border);border-radius:var(--radius-xl);padding:var(--space-3) var(--space-4);transition:all var(--transition)}
+.chat-input-wrap:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+.chat-input{flex:1;background:none;border:none;outline:none;font-family:var(--font-body);font-size:var(--text-sm);color:var(--text);resize:none;max-height:120px}
+.chat-input::placeholder{color:var(--text-muted)}
+.send-btn{width:36px;height:36px;border-radius:var(--radius-md);background:var(--accent);color:#fff;display:grid;place-items:center;border:none;cursor:pointer;flex-shrink:0;transition:all var(--transition)}
+.send-btn:hover{background:var(--accent);opacity:0.85;transform:scale(1.05)}
+.chat-suggestions{display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-3)}
+.suggestion-chip{padding:var(--space-2) var(--space-3);border-radius:var(--radius-full);border:1px solid var(--border);background:var(--surface);font-size:var(--text-xs);color:var(--text-muted);cursor:pointer;transition:all var(--transition)}
+.suggestion-chip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.portfolio-grid{display:grid;grid-template-columns:1fr 2fr;gap:var(--space-4)}
+.alloc-chart-wrap{height:220px;position:relative;display:flex;align-items:center;justify-content:center}
+.alloc-center{position:absolute;text-align:center}
+.alloc-total{font-size:var(--text-xl);font-weight:700}
+.alloc-label{font-size:var(--text-xs);color:var(--text-muted)}
+.holdings-list{display:flex;flex-direction:column;gap:var(--space-3)}
+.holding-row{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);border:1px solid var(--border);background:var(--surface)}
+.holding-symbol{width:40px;height:40px;border-radius:var(--radius-md);background:var(--accent-dim);display:grid;place-items:center;font-size:0.65rem;font-weight:700;color:var(--accent);flex-shrink:0}
+.holding-info{flex:1}
+.holding-name{font-size:var(--text-sm);font-weight:600}
+.holding-qty{font-size:var(--text-xs);color:var(--text-muted)}
+.holding-vals{text-align:right}
+.holding-price{font-size:var(--text-sm);font-weight:600;font-variant-numeric:tabular-nums}
+.holding-pnl{font-size:var(--text-xs);font-weight:600}
+.section-heading{font-size:var(--text-lg);font-weight:700;letter-spacing:-0.02em}
+.section-sub{font-size:var(--text-sm);color:var(--text-muted);margin-top:var(--space-1)}
+@media (max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .main{margin-left:0}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .chart-grid{grid-template-columns:1fr}
+  .portfolio-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" role="navigation" aria-label="Main navigation">
+    <div class="sidebar-logo">
+      <svg class="logo-mark" viewBox="0 0 32 32" fill="none" aria-label="IntelStock logo">
+        <rect width="32" height="32" rx="8" fill="var(--accent-dim)"/>
+        <path d="M8 22 L12 16 L16 19 L20 12 L24 14" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="24" cy="14" r="2.5" fill="var(--accent)"/>
+        <path d="M8 26 H24" stroke="var(--accent)" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+      </svg>
+      <span class="logo-text">Intel<span>Stock</span></span>
+    </div>
+    <nav class="sidebar-nav">
+      <span class="nav-label">Overview</span>
+      <button class="nav-item active" onclick="showPage('dashboard',this)" aria-current="page">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-item" onclick="showPage('watchlist',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2L9.8 6.2L14.5 6.6L11 9.7L12.1 14.3L8 11.8L3.9 14.3L5 9.7L1.5 6.6L6.2 6.2Z"/></svg>
+        Watchlist
+      </button>
+      <button class="nav-item" onclick="showPage('portfolio',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="12" height="9" rx="1"/><path d="M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1"/><path d="M2 8h12"/></svg>
+        Portfolio
+      </button>
+      <span class="nav-label">Analysis</span>
+      <button class="nav-item" onclick="showPage('insights',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1a5 5 0 015 5c0 2-1.2 3.8-3 4.6V12H6v-1.4C4.2 9.8 3 8 3 6a5 5 0 015-5z"/><path d="M6 14h4"/></svg>
+        AI Insights
+      </button>
+      <button class="nav-item" onclick="showPage('chat',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 3H2a1 1 0 00-1 1v7a1 1 0 001 1h2v3l4-3h6a1 1 0 001-1V4a1 1 0 00-1-1z"/></svg>
+        AI Chat
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="avatar" aria-hidden="true">CK</div>
+      <div class="avatar-info">
+        <div class="avatar-name">Chanukya</div>
+        <div class="avatar-role">Pro Trader</div>
+      </div>
+      <button class="icon-btn" onclick="toggleTheme()" data-theme-toggle aria-label="Toggle theme">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <header class="topbar">
+      <h1 class="topbar-title" id="page-title">Dashboard</h1>
+      <div class="search-bar" role="search">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="search" placeholder="Search stocks, NSE/BSE..." aria-label="Search stocks">
+      </div>
+      <div class="topbar-actions">
+        <span class="badge badge-live">LIVE</span>
+        <button class="icon-btn" aria-label="Notifications">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <span class="notif-dot" aria-hidden="true"></span>
+        </button>
+        <button class="icon-btn" aria-label="Settings">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Dashboard Page -->
+    <main id="page-dashboard" class="page active" aria-label="Dashboard">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Nifty 50</span>
+            <div class="kpi-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
+          </div>
+          <div class="kpi-value" id="nifty-val">24,762</div>
+          <div class="kpi-change up">▲ 1.24% <span style="font-weight:400;color:var(--text-muted)">today</span></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Sensex</span>
+            <div class="kpi-icon" style="background:rgba(96,165,250,0.12);color:var(--blue)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
+          </div>
+          <div class="kpi-value" id="sensex-val">81,467</div>
+          <div class="kpi-change up">▲ 0.87%</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">Portfolio P&L</span>
+            <div class="kpi-icon" style="background:rgba(52,211,153,0.12);color:var(--green)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+          </div>
+          <div class="kpi-value" style="color:var(--green)" id="pnl-val">+₹1.24L</div>
+          <div class="kpi-change up">▲ 8.3% overall</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-header">
+            <span class="kpi-label">AI Sentiment</span>
+            <div class="kpi-icon" style="background:rgba(251,191,36,0.12);color:var(--gold)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 110 20A10 10 0 0112 2z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg></div>
+          </div>
+          <div class="kpi-value" style="color:var(--gold)">Bullish</div>
+          <div class="kpi-change up">73% positive signals</div>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Nifty 50 — Price Chart</div>
+              <div class="card-subtitle">NSE · Live feed</div>
+            </div>
+            <div class="chart-tabs">
+              <button class="chart-tab active">1D</button>
+              <button class="chart-tab">1W</button>
+              <button class="chart-tab">1M</button>
+              <button class="chart-tab">3M</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="chart-wrap"><canvas id="main-chart"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Top Movers</div>
+              <div class="card-subtitle">NSE today</div>
+            </div>
+          </div>
+          <div class="card-body" style="padding:var(--space-4)">
+            <div class="movers-list" id="movers-list"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Watchlist Page -->
+    <section id="page-watchlist" class="page" aria-label="Watchlist">
+      <div>
+        <h2 class="section-heading">My Watchlist</h2>
+        <p class="section-sub">Tracking 8 stocks · Updated live</p>
+      </div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table class="watchlist-table" aria-label="Watchlist stocks">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Price</th>
+                <th>Change</th>
+                <th>52W Range</th>
+                <th>Volume</th>
+                <th>Sentiment</th>
+              </tr>
+            </thead>
+            <tbody id="watchlist-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Portfolio Page -->
+    <section id="page-portfolio" class="page" aria-label="Portfolio">
+      <div>
+        <h2 class="section-heading">Portfolio</h2>
+        <p class="section-sub">Total value: ₹16.2L · 8.3% returns</p>
+      </div>
+      <div class="portfolio-grid">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Allocation</div></div>
+          <div class="card-body">
+            <div class="alloc-chart-wrap">
+              <canvas id="alloc-chart"></canvas>
+              <div class="alloc-center">
+                <div class="alloc-total">₹16.2L</div>
+                <div class="alloc-label">Total</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">Holdings</div></div>
+          <div class="card-body"><div class="holdings-list" id="holdings-list"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Insights Page -->
+    <section id="page-insights" class="page" aria-label="AI Insights">
+      <div>
+        <h2 class="section-heading">AI Market Insights</h2>
+        <p class="section-sub">Powered by IntelStock AI · Updated every 15 min</p>
+      </div>
+      <div class="sentiment-grid">
+        <div class="sentiment-card">
+          <div class="sentiment-label">Market Sentiment</div>
+          <div class="sentiment-score" style="color:var(--green)">73%</div>
+          <div class="sentiment-bar"><div class="sentiment-fill bullish" style="width:73%"></div></div>
+          <div style="font-size:var(--text-xs);color:var(--text-muted)">Bullish signals across 47 indicators</div>
+        </div>
+        <div class="sentiment-card">
+          <div class="sentiment-label">FII/DII Flow</div>
+          <div class="sentiment-score" style="color:var(--green)">+₹2,847Cr</div>
+          <div class="sentiment-bar"><div class="sentiment-fill bullish" style="width:60%"></div></div>
+          <div style="font-size:var(--text-xs);color:var(--text-muted)">Net buying today</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Latest Market News</div></div>
+        <div class="card-body"><div class="news-list" id="news-list"></div></div>
+      </div>
+    </section>
+
+    <!-- Chat Page -->
+    <section id="page-chat" class="page" aria-label="AI Chat" style="padding:0;gap:0">
+      <div class="chat-wrap">
+        <div style="padding:var(--space-6) var(--space-6) var(--space-4);border-bottom:1px solid var(--border)">
+          <h2 class="section-heading">AI Stock Assistant</h2>
+          <p class="section-sub" style="margin-top:var(--space-1)">Ask about any NSE/BSE stock, sector, or market condition</p>
+        </div>
+        <div class="chat-messages" id="chat-messages" aria-live="polite" aria-label="Chat messages">
+          <div class="msg ai">
+            <div class="msg-avatar ai" aria-hidden="true">AI</div>
+            <div>
+              <div class="msg-bubble">Hello! I'm your IntelStock AI assistant. I can help you analyze stocks listed on NSE and BSE, explain market trends, assess sentiment, and answer questions about your portfolio. What would you like to know?</div>
+              <div class="msg-time">Now</div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <div class="chat-suggestions" id="chat-suggestions">
+            <button class="suggestion-chip" onclick="sendSuggestion(this)">Analyze RELIANCE</button>
+            <button class="suggestion-chip" onclick="sendSuggestion(this)">Nifty outlook today</button>
+            <button class="suggestion-chip" onclick="sendSuggestion(this)">Top IT stocks to watch</button>
+            <button class="suggestion-chip" onclick="sendSuggestion(this)">FII activity this week</button>
+          </div>
+          <div class="chat-input-wrap">
+            <textarea class="chat-input" id="chat-input" placeholder="Ask about any stock, sector or market..." rows="1" aria-label="Chat input" onkeydown="handleChatKey(event)"></textarea>
+            <button class="send-btn" onclick="sendChat()" aria-label="Send message">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+// ─── Three.js Background ────────────────────────────────────────
+(function(){
+  const canvas = document.getElementById('bg-canvas');
+  const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 100);
+  camera.position.z = 30;
+  const geo = new THREE.BufferGeometry();
+  const N = 180;
+  const pos = new Float32Array(N*3);
+  for(let i=0;i<N;i++){pos[i*3]=( Math.random()-.5)*80;pos[i*3+1]=(Math.random()-.5)*60;pos[i*3+2]=(Math.random()-.5)*40;}
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const mat = new THREE.PointsMaterial({color:0x00d4aa,size:0.18,transparent:true,opacity:0.6});
+  const pts = new THREE.Points(geo,mat);
+  scene.add(pts);
+  function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+  window.addEventListener('resize',resize); resize();
+  let t=0;
+  (function loop(){requestAnimationFrame(loop);t+=0.002;pts.rotation.y=t*0.15;pts.rotation.x=t*0.08;renderer.render(scene,camera);})();
+})();
+
+// ─── Theme Toggle ────────────────────────────────────────────────
+function toggleTheme(){
+  const h=document.documentElement;
+  const cur=h.getAttribute('data-theme')||'dark';
+  h.setAttribute('data-theme',cur==='dark'?'light':'dark');
+}
+
+// ─── Page Navigation ─────────────────────────────────────────────
+const pageTitles={dashboard:'Dashboard',watchlist:'Watchlist',portfolio:'Portfolio',insights:'AI Insights',chat:'AI Chat'};
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>{n.classList.remove('active');n.removeAttribute('aria-current');});
+  document.getElementById('page-'+id).classList.add('active');
+  btn.classList.add('active');
+  btn.setAttribute('aria-current','page');
+  document.getElementById('page-title').textContent=pageTitles[id];
+}
+
+// ─── Chart.js Main Chart ─────────────────────────────────────────
+(function(){
+  const ctx=document.getElementById('main-chart').getContext('2d');
+  const labels=['9:15','10:00','11:00','12:00','13:00','14:00','15:00','15:29'];
+  const data=[24580,24620,24710,24680,24750,24730,24780,24762];
+  const isDark=()=>document.documentElement.getAttribute('data-theme')==='dark';
+  const color=()=>isDark()?'#00d4aa':'#059669';
+  const chart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{data,borderColor:color(),backgroundColor:'transparent',borderWidth:2,pointRadius:0,tension:0.4,fill:{target:'origin',above:isDark()?'rgba(0,212,170,0.06)':'rgba(5,150,105,0.06)'}}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false,backgroundColor:isDark()?'#111820':'#fff',titleColor:isDark()?'#e2e8f0':'#0f172a',bodyColor:isDark()?'#64748b':'#64748b',borderColor:isDark()?'rgba(255,255,255,0.07)':'rgba(0,0,0,0.08)',borderWidth:1}},scales:{x:{grid:{display:false},ticks:{color:'#64748b',font:{size:10}}},y:{grid:{color:isDark()?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)'},ticks:{color:'#64748b',font:{size:10}}}}}
+  });
+})();
+
+// ─── Chart Tabs ──────────────────────────────────────────────────
+document.querySelectorAll('.chart-tab').forEach(tab=>{
+  tab.addEventListener('click',function(){
+    document.querySelectorAll('.chart-tab').forEach(t=>t.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+// ─── Top Movers ──────────────────────────────────────────────────
+const movers=[
+  {sym:'RELIANCE',sector:'Energy',price:'2,987',chg:'+2.4%',dir:'up'},
+  {sym:'TCS',sector:'IT',price:'4,123',chg:'+1.8%',dir:'up'},
+  {sym:'HDFC',sector:'Banking',price:'1,680',chg:'-0.9%',dir:'down'},
+  {sym:'INFY',sector:'IT',price:'1,924',chg:'+3.1%',dir:'up'},
+  {sym:'BAJFIN',sector:'Finance',price:'7,240',chg:'-1.2%',dir:'down'},
+];
+const ml=document.getElementById('movers-list');
+movers.forEach(m=>{
+  ml.innerHTML+=`<div class="mover-row">
+    <div class="mover-logo">${m.sym.slice(0,3)}</div>
+    <div class="mover-info"><div class="mover-name">${m.sym}</div><div class="mover-sector">${m.sector}</div></div>
+    <div class="mover-price"><div class="mover-val">₹${m.price}</div><div class="mover-chg ${m.dir}">${m.chg}</div></div>
+  </div>`;
+});
+
+// ─── Watchlist ────────────────────────────────────────────────────
+const watchlistData=[
+  {sym:'RELIANCE',name:'Reliance Industries',price:'2,987.45',chg:'+2.4%',dir:'up',low:'2,220',high:'3,024',vol:'4.2M',sent:'Bullish'},
+  {sym:'TCS',name:'Tata Consultancy',price:'4,123.80',chg:'+1.8%',dir:'up',low:'3,441',high:'4,592',vol:'1.8M',sent:'Bullish'},
+  {sym:'HDFC',name:'HDFC Bank',price:'1,680.20',chg:'-0.9%',dir:'down',low:'1,430',high:'1,795',vol:'6.1M',sent:'Neutral'},
+  {sym:'INFY',name:'Infosys',price:'1,924.60',chg:'+3.1%',dir:'up',low:'1,358',high:'2,006',vol:'3.3M',sent:'Bullish'},
+  {sym:'WIPRO',name:'Wipro',price:'548.30',chg:'-0.4%',dir:'down',low:'398',high:'593',vol:'2.7M',sent:'Neutral'},
+  {sym:'ITC',name:'ITC Limited',price:'468.90',chg:'+0.7%',dir:'up',low:'412',high:'509',vol:'5.8M',sent:'Bullish'},
+  {sym:'TATASTEEL',name:'Tata Steel',price:'184.50',chg:'-1.8%',dir:'down',low:'122',high:'199',vol:'9.2M',sent:'Bearish'},
+  {sym:'MARUTI',name:'Maruti Suzuki',price:'12,440',chg:'+0.5%',dir:'up',low:'10,030',high:'13,680',vol:'0.8M',sent:'Bullish'},
+];
+const wb=document.getElementById('watchlist-body');
+watchlistData.forEach(s=>{
+  wb.innerHTML+=`<tr>
+    <td><div class="stock-symbol">${s.sym}</div><div class="stock-name">${s.name}</div></td>
+    <td style="font-weight:600;font-variant-numeric:tabular-nums">₹${s.price}</td>
+    <td><span class="pill ${s.dir}">${s.chg}</span></td>
+    <td style="font-size:var(--text-xs);color:var(--text-muted)">₹${s.low} – ₹${s.high}</td>
+    <td style="font-size:var(--text-xs)">${s.vol}</td>
+    <td><span class="pill ${s.sent==='Bullish'?'up':s.sent==='Bearish'?'down':''}" style="${s.sent==='Neutral'?'background:var(--surface-3);color:var(--text-muted)':''}">${s.sent}</span></td>
+  </tr>`;
+});
+
+// ─── Portfolio Donut ─────────────────────────────────────────────
+(function(){
+  const ctx=document.getElementById('alloc-chart').getContext('2d');
+  new Chart(ctx,{
+    type:'doughnut',
+    data:{labels:['IT','Banking','Energy','Finance','Auto'],datasets:[{data:[32,24,20,14,10],backgroundColor:['#00d4aa','#60a5fa','#fbbf24','#34d399','#f87171'],borderWidth:0,hoverOffset:4}]},
+    options:{responsive:true,maintainAspectRatio:true,cutout:'72%',plugins:{legend:{position:'bottom',labels:{color:'#64748b',font:{size:11},usePointStyle:true,pointStyleWidth:8,padding:12}},tooltip:{backgroundColor:'#111820',titleColor:'#e2e8f0',bodyColor:'#64748b',borderColor:'rgba(255,255,255,0.07)',borderWidth:1}}}
+  });
+})();
+
+// ─── Holdings ─────────────────────────────────────────────────────
+const holdings=[
+  {sym:'RELI',name:'Reliance Industries',qty:'12 shares',price:'₹2,987',pnl:'+₹18,400',dir:'up'},
+  {sym:'TCS',name:'Tata Consultancy',qty:'5 shares',price:'₹4,124',pnl:'+₹12,100',dir:'up'},
+  {sym:'HDFC',name:'HDFC Bank',qty:'30 shares',price:'₹1,680',pnl:'-₹3,200',dir:'down'},
+  {sym:'INFY',name:'Infosys',qty:'20 shares',price:'₹1,925',pnl:'+₹9,600',dir:'up'},
+];
+const hl=document.getElementById('holdings-list');
+holdings.forEach(h=>{
+  hl.innerHTML+=`<div class="holding-row">
+    <div class="holding-symbol">${h.sym}</div>
+    <div class="holding-info"><div class="holding-name">${h.name}</div><div class="holding-qty">${h.qty}</div></div>
+    <div class="holding-vals"><div class="holding-price">${h.price}</div><div class="holding-pnl" style="color:${h.dir==='up'?'var(--green)':'var(--red)'}">${h.pnl}</div></div>
+  </div>`;
+});
+
+// ─── News ──────────────────────────────────────────────────────────
+const news=[
+  {source:'Economic Times',time:'14 min ago',title:'RBI holds repo rate at 6.5%; signals cautious easing in H2 FY26',tags:['RBI','Macro','Rates'],sent:'neutral'},
+  {source:'Moneycontrol',time:'38 min ago',title:'Reliance Industries Q4 results beat estimates; Jio revenue up 12% YoY',tags:['RELIANCE','Earnings'],sent:'bull'},
+  {source:'Business Standard',time:'1h ago',title:'IT sector outlook remains positive as US deal pipeline strengthens',tags:['TCS','INFY','IT'],sent:'bull'},
+  {source:'Mint',time:'2h ago',title:'Metal stocks under pressure as China demand concerns resurface',tags:['TATASTEEL','Metals'],sent:'bear'},
+];
+const nl=document.getElementById('news-list');
+news.forEach(n=>{
+  const sc=n.sent==='bull'?'ns-bull':n.sent==='bear'?'ns-bear':'ns-neu';
+  const st=n.sent==='bull'?'Bullish':n.sent==='bear'?'Bearish':'Neutral';
+  nl.innerHTML+=`<div class="news-item">
+    <div style="flex:1">
+      <div class="news-meta"><span class="news-source">${n.source}</span><span class="news-time">${n.time}</span></div>
+      <div class="news-title">${n.title}</div>
+      <div class="news-tags">${n.tags.map(t=>`<span class="news-tag">${t}</span>`).join('')}<span class="news-sentiment ${sc}">${st}</span></div>
+    </div>
+  </div>`;
+});
+
+// ─── Chat ──────────────────────────────────────────────────────────
+const aiResponses={
+  default:[
+    "Based on current market data, I'm seeing mixed signals. The Nifty 50 is trading near its 52-week high with strong breadth. Key resistance is at 24,850.",
+    "Looking at the technical picture, RSI is at 62 — slightly elevated but not overbought. FII flows have been positive for the last 5 sessions.",
+    "Sector rotation is currently favoring IT and Energy. Banking stocks face near-term headwinds due to rising NPAs in the mid-cap segment.",
+    "My sentiment model is showing 73% bullish signals across the top 50 NSE stocks. This is based on news sentiment, price momentum, and institutional flow data.",
+  ],
+  reliance:"Reliance Industries (NSE: RELIANCE) is showing strong bullish momentum. Q4 results beat estimates with Jio revenue up 12% YoY. Key levels: support at ₹2,880, resistance at ₹3,050. AI Sentiment: Bullish (82%). Recommendation: Hold/Accumulate on dips.",
+  tcs:"TCS is outperforming the IT index. The recent US deal pipeline commentary is positive. Trading near all-time highs. Key levels: support ₹3,980, resistance ₹4,280. Sentiment: Bullish (78%).",
+  nifty:"Nifty 50 is in a strong uptrend. Currently at 24,762 with positive market breadth. FII buying ₹2,847Cr today. Key levels: support 24,400, resistance 25,000. Short-term outlook: Bullish.",
+};
+let aiIdx=0;
+function getAIResponse(msg){
+  const m=msg.toLowerCase();
+  if(m.includes('reliance')) return aiResponses.reliance;
+  if(m.includes('tcs')) return aiResponses.tcs;
+  if(m.includes('nifty')||m.includes('market')) return aiResponses.nifty;
+  return aiResponses.default[aiIdx++%aiResponses.default.length];
+}
+function addMsg(text,role){
+  const cm=document.getElementById('chat-messages');
+  const time=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  cm.innerHTML+=`<div class="msg ${role}">
+    <div class="msg-avatar ${role}" aria-hidden="true">${role==='ai'?'AI':'You'}</div>
+    <div><div class="msg-bubble">${text}</div><div class="msg-time">${time}</div></div>
+  </div>`;
+  cm.scrollTop=cm.scrollHeight;
+}
+function sendChat(){
+  const input=document.getElementById('chat-input');
+  const msg=input.value.trim();
+  if(!msg) return;
+  addMsg(msg,'user');
+  input.value='';
+  document.getElementById('chat-suggestions').style.display='none';
+  setTimeout(()=>addMsg(getAIResponse(msg),'ai'),800);
+}
+function sendSuggestion(btn){addMsg(btn.textContent,'user');document.getElementById('chat-suggestions').style.display='none';setTimeout(()=>addMsg(getAIResponse(btn.textContent),'ai'),800);}
+function handleChatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+
+// ─── KPI Tick ──────────────────────────────────────────────────────
+setInterval(()=>{
+  const delta=(Math.random()-.48)*8;
+  const el=document.getElementById('nifty-val');
+  const cur=parseFloat(el.textContent.replace(',',''));
+  el.textContent=(cur+delta).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+},3000);
+</script>
+</body>
+</html>
