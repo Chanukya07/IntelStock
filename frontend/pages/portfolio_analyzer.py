@@ -61,7 +61,7 @@ with col_donut:
         margin=dict(l=0,r=0,t=0,b=0),
         legend=dict(font=dict(color='#94a3b8', size=11), bgcolor='rgba(0,0,0,0)')
     )
-    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    st.plotly_chart(fig, width="stretch", config={'displayModeBar': False})
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col_holdings:

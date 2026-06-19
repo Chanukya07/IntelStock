@@ -47,7 +47,7 @@ st.markdown("<div class='intel-card'><h3 style='color:#e2e8f0;margin-bottom:16px
 df = pd.DataFrame(watchlist)
 st.dataframe(
     df,
-    use_container_width=True,
+    width="stretch",
     hide_index=True,
     column_config={
         "Change": st.column_config.TextColumn("Change"),
