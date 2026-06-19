@@ -3,7 +3,16 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from backend.services.insight_service import InsightService
+from backend.services.market_data_service import MarketDataService
+from backend.services.news_intelligence_service import NewsIntelligenceService
+from backend.services.sentiment_service import SentimentService
+
 router = APIRouter()
+market_data_service = MarketDataService()
+news_service = NewsIntelligenceService()
+sentiment_service = SentimentService()
+insight_service = InsightService()
 
 
 class ChatRequest(BaseModel):
@@ -11,32 +20,52 @@ class ChatRequest(BaseModel):
 
 
 @router.get("/stock")
-def get_stock(symbol: str) -> dict[str, str]:
-    return {"symbol": symbol, "message": "Market data service placeholder"}
+def get_stock(symbol: str) -> dict[str, str | float]:
+    return market_data_service.fetch_live_quote(symbol)
 
 
 @router.get("/news")
-def get_news(symbol: str, source: str | None = None) -> dict[str, str | None]:
-    return {
-        "symbol": symbol,
-        "source": source,
-        "message": "News intelligence service placeholder",
-    }
+def get_news(symbol: str, source: str | None = None) -> dict[str, object]:
+    news = news_service.fetch_company_news(symbol)
+    if source:
+        news["source"] = source
+    return news
 
 
 @router.get("/sentiment")
-def get_sentiment(symbol: str) -> dict[str, str]:
-    return {"symbol": symbol, "message": "Sentiment analysis service placeholder"}
+def get_sentiment(symbol: str) -> dict[str, object]:
+    quote = market_data_service.fetch_live_quote(symbol)
+    narrative = f"{quote['name']} shows {quote['sentiment'].lower()} momentum with a {quote['change_pct']:+.2f}% move."
+    return sentiment_service.score_news(f"{quote['headline']} {narrative}") | {"symbol": quote["symbol"]}
 
 
 @router.get("/insights")
-def get_insights(symbol: str) -> dict[str, str]:
-    return {"symbol": symbol, "message": "LLM insight engine placeholder"}
+def get_insights(symbol: str) -> dict[str, object]:
+    return insight_service.generate_report(symbol)
+
+
+def _infer_symbol(query: str) -> str:
+    normalized = query.upper()
+    for symbol in ("RELIANCE", "TCS", "INFY", "WIPRO", "HDFC", "HDFCBANK", "NIFTY"):
+        if symbol in normalized:
+            return symbol
+    if any(token in normalized for token in ("INDEX", "MARKET", "NSE", "SENSEX")):
+        return "NIFTY"
+    return "RELIANCE"
 
 
 @router.post("/chat")
-def chat(payload: ChatRequest) -> dict[str, str]:
-    return {"message": f"Research agent placeholder response for: {payload.query}"}
+def chat(payload: ChatRequest) -> dict[str, object]:
+    symbol = _infer_symbol(payload.query)
+    report = insight_service.generate_report(symbol, payload.query)
+    return {
+        "symbol": symbol,
+        "message": report["summary"],
+        "recommendation": report["recommendation"],
+        "confidence": report["confidence"],
+        "catalysts": report["catalysts"],
+        "risks": report["risks"],
+    }
 
 
 @router.get("/portfolio")
