@@ -2,16 +2,14 @@
 import streamlit as st
 import time
 
+from frontend.sidebar import inject_styles, render_sidebar
+
 st.set_page_config(page_title="AI Chat — IntelStock", layout="wide")
+
+inject_styles()
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap');
-html,body,[class*="css"]{font-family:'Inter',sans-serif!important;}
-#MainMenu,footer,header{visibility:hidden;}
-.stApp{background:#080c12!important;}
-[data-testid="stSidebar"]{background:#0d1117!important;border-right:1px solid rgba(255,255,255,0.07)!important;}
-[data-testid="stSidebar"] *{color:#e2e8f0!important;}
 .stButton>button{background:rgba(0,212,170,0.1)!important;border:1px solid rgba(0,212,170,0.25)!important;color:#00d4aa!important;border-radius:8px!important;font-size:0.8rem!important;}
 .stTextInput input{background:#0d1117!important;border:1px solid rgba(255,255,255,0.1)!important;color:#e2e8f0!important;border-radius:10px!important;}
 .stTextInput input:focus{border-color:rgba(0,212,170,0.5)!important;}
@@ -21,14 +19,7 @@ html,body,[class*="css"]{font-family:'Inter',sans-serif!important;}
 </style>
 """, unsafe_allow_html=True)
 
-with st.sidebar:
-    st.markdown("<div style='padding:8px 0 16px;'><span style='font-size:1.2rem;font-weight:700;color:#e2e8f0;'>Intel<span style='color:#00d4aa;'>Stock</span></span></div>", unsafe_allow_html=True)
-    st.page_link("dashboard.py", label="📊  Dashboard")
-    st.page_link("pages/overview.py", label="🏠  Overview")
-    st.page_link("pages/stock_research.py", label="🔍  Stock Research")
-    st.page_link("pages/sentiment_dashboard.py", label="🧠  Sentiment")
-    st.page_link("pages/portfolio_analyzer.py", label="💼  Portfolio")
-    st.page_link("pages/ai_chat.py", label="💬  AI Chat")
+render_sidebar()
 
 st.markdown("<h1 style='color:#e2e8f0;font-size:1.6rem;font-weight:700;margin-bottom:4px;'>AI Stock Assistant</h1>", unsafe_allow_html=True)
 st.markdown("<div style='color:#64748b;font-size:0.8rem;margin-bottom:20px;'>Ask about any NSE/BSE stock, sector, or market condition</div>", unsafe_allow_html=True)
