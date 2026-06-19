@@ -13,11 +13,11 @@ CREATE TABLE IF NOT EXISTS historical_prices (
     id INTEGER PRIMARY KEY,
     stock_id INTEGER NOT NULL,
     timestamp TEXT NOT NULL,
-    open REAL,
-    high REAL,
-    low REAL,
-    close REAL,
-    volume REAL,
+    open NUMERIC,
+    high NUMERIC,
+    low NUMERIC,
+    close NUMERIC,
+    volume NUMERIC,
     FOREIGN KEY (stock_id) REFERENCES stocks(id)
 );
 
@@ -34,8 +34,8 @@ CREATE TABLE IF NOT EXISTS news (
 CREATE TABLE IF NOT EXISTS sentiment_scores (
     id INTEGER PRIMARY KEY,
     news_id INTEGER NOT NULL,
-    bullish_score REAL,
-    bearish_score REAL,
+    bullish_score NUMERIC,
+    bearish_score NUMERIC,
     analyzed_at TEXT,
     FOREIGN KEY (news_id) REFERENCES news(id)
 );
@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS watchlists (
     id INTEGER PRIMARY KEY,
     user_id INTEGER NOT NULL,
     stock_id INTEGER NOT NULL,
+    created_at TEXT,
     UNIQUE(user_id, stock_id),
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (stock_id) REFERENCES stocks(id)
@@ -71,8 +72,8 @@ CREATE TABLE IF NOT EXISTS portfolios (
     id INTEGER PRIMARY KEY,
     user_id INTEGER NOT NULL,
     stock_id INTEGER NOT NULL,
-    quantity REAL NOT NULL,
-    avg_price REAL NOT NULL,
+    quantity NUMERIC NOT NULL,
+    avg_price NUMERIC NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (stock_id) REFERENCES stocks(id)
 );

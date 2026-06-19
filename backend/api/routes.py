@@ -16,7 +16,7 @@ def get_stock(symbol: str) -> dict[str, str]:
 
 
 @router.get("/news")
-def get_news(symbol: str | None = None, source: str | None = None) -> dict[str, str | None]:
+def get_news(symbol: str, source: str | None = None) -> dict[str, str | None]:
     return {
         "symbol": symbol,
         "source": source,
