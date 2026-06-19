@@ -1,28 +1,35 @@
 """Sentiment Dashboard page."""
 import streamlit as st
 import plotly.graph_objects as go
-import plotly.express as px
-
-from frontend.sidebar import inject_styles, render_sidebar
 
 st.set_page_config(page_title="Sentiment — IntelStock", layout="wide")
 
-inject_styles()
-
 st.markdown("""
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap');
+html,body,[class*="css"]{font-family:'Inter',sans-serif!important;}
+#MainMenu,footer,header{visibility:hidden;}
+.stApp{background:#080c12!important;}
+[data-testid="stSidebar"]{background:#0d1117!important;border-right:1px solid rgba(255,255,255,0.07)!important;}
+[data-testid="stSidebar"] *{color:#e2e8f0!important;}
 [data-testid="metric-container"]{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px;}
 [data-testid="stMetricValue"]{font-family:'JetBrains Mono',monospace!important;font-size:1.4rem!important;font-weight:700!important;color:#e2e8f0!important;}
 .intel-card{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px 24px;margin-bottom:16px;}
 </style>
 """, unsafe_allow_html=True)
 
-render_sidebar()
+with st.sidebar:
+    st.markdown("<div style='padding:8px 0 16px;'><span style='font-size:1.2rem;font-weight:700;color:#e2e8f0;'>Intel<span style='color:#00d4aa;'>Stock</span></span></div>", unsafe_allow_html=True)
+    st.page_link("dashboard.py", label="📊  Dashboard")
+    st.page_link("pages/overview.py", label="🏠  Overview")
+    st.page_link("pages/stock_research.py", label="🔍  Stock Research")
+    st.page_link("pages/sentiment_dashboard.py", label="🧠  Sentiment")
+    st.page_link("pages/portfolio_analyzer.py", label="💼  Portfolio")
+    st.page_link("pages/ai_chat.py", label="💬  AI Chat")
 
 st.markdown("<h1 style='color:#e2e8f0;font-size:1.6rem;font-weight:700;margin-bottom:4px;'>Sentiment Dashboard</h1>", unsafe_allow_html=True)
 st.markdown("<div style='color:#64748b;font-size:0.8rem;margin-bottom:24px;'>AI-powered market sentiment · Updated every 15 min</div>", unsafe_allow_html=True)
 
-# Top metrics
 c1,c2,c3,c4 = st.columns(4)
 with c1: st.metric("Overall Sentiment","Bullish 🟢","73% positive")
 with c2: st.metric("FII Flow","+₹2,847 Cr","Net buying")
@@ -37,20 +44,19 @@ with col_radar:
     st.markdown("<div class='intel-card'><h3 style='color:#e2e8f0;margin-bottom:16px;'>Sector Sentiment Radar</h3>", unsafe_allow_html=True)
     sectors = ["IT","Banking","Energy","Auto","FMCG","Pharma","Metal"]
     scores  = [78, 54, 72, 61, 58, 65, 34]
-    sectors_closed = sectors + [sectors[0]]
-    scores_closed  = scores  + [scores[0]]
-
+    sectors_c = sectors + [sectors[0]]
+    scores_c  = scores  + [scores[0]]
     fig = go.Figure(go.Scatterpolar(
-        r=scores_closed, theta=sectors_closed,
+        r=scores_c, theta=sectors_c,
         fill='toself',
         fillcolor='rgba(0,212,170,0.12)',
         line=dict(color='#00d4aa', width=2),
         marker=dict(color='#00d4aa', size=6)
     ))
     fig.update_layout(
-        paper_bgcolor='transparent',
+        paper_bgcolor='rgba(0,0,0,0)',
         polar=dict(
-            bgcolor='transparent',
+            bgcolor='rgba(0,0,0,0)',
             radialaxis=dict(visible=True, range=[0,100], color='#64748b', gridcolor='rgba(255,255,255,0.06)', tickfont=dict(size=9)),
             angularaxis=dict(color='#e2e8f0', gridcolor='rgba(255,255,255,0.06)', tickfont=dict(size=11))
         ),
@@ -80,7 +86,7 @@ with col_news:
             <span style='font-size:0.7rem;color:#64748b;'>{n['time']}</span>
           </div>
           <div style='font-size:0.82rem;color:#cbd5e1;line-height:1.4;margin-bottom:6px;'>{n['title']}</div>
-          <span style='background:{sent_bg[n['sent']]};color:{sent_color[n['sent']]};padding:2px 8px;border-radius:999px;font-size:0.65rem;font-weight:600;'>{n['sent']}</span>
+          <span style='background:{sent_bg[n["sent"]]};color:{sent_color[n["sent"]]};padding:2px 8px;border-radius:999px;font-size:0.65rem;font-weight:600;'>{n['sent']}</span>
         </div>
         """, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
