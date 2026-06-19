@@ -9,7 +9,8 @@ SIDEBAR_CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap');
 html,body,[class*="css"]{font-family:'Inter',sans-serif!important;}
-#MainMenu,footer,header{visibility:hidden;}
+#MainMenu,footer{visibility:hidden;}
+header{background:transparent!important;}
 .stApp{background:#080c12!important;}
 section[data-testid="stSidebarNav"], nav[data-testid="stSidebarNav"] {display:none !important;}
 [data-testid="stSidebar"]{background:#0d1117!important;border-right:1px solid rgba(255,255,255,0.07)!important;}
