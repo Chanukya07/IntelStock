@@ -17,14 +17,22 @@ st.markdown("""
 html,body,[class*="css"]{font-family:'Inter',sans-serif!important;}
 #MainMenu,footer,header{visibility:hidden;}
 
-/* Hide Streamlit's auto-generated page nav in sidebar */
+/* Hide Streamlit's auto-generated page nav in sidebar — but keep the collapse toggle */
 [data-testid="stSidebarNav"]{display:none!important;}
-[data-testid="collapsedControl"]{display:none!important;}
 
 .stApp{background:#080c12!important;}
 [data-testid="stSidebar"]{background:#0d1117!important;border-right:1px solid rgba(255,255,255,0.07)!important;}
 [data-testid="stSidebar"] *{color:#e2e8f0!important;}
 [data-testid="stSidebarContent"]{padding:0!important;}
+
+/* Style the collapse/expand toggle button */
+[data-testid="collapsedControl"]{
+  background:#0d1117!important;
+  border:1px solid rgba(255,255,255,0.07)!important;
+  border-left:none!important;
+  color:#64748b!important;
+}
+[data-testid="collapsedControl"]:hover{color:#00d4aa!important;background:#111820!important;}
 
 /* Page links inside sidebar */
 [data-testid="stSidebar"] [data-testid="stPageLink"] a {
