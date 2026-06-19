@@ -5,3 +5,8 @@ __pycache__/
 .env.local
 *.pem
 *.key
+*.db
+*.sqlite
+*.sqlite3
+vectorstore/
+data/
