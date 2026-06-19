@@ -47,6 +47,22 @@ IntelStock/
 - Portfolio Analyzer
 - AI Chat
 
+## Free Hosting Path
+
+The easiest no-cost hosting setup for this repository is:
+
+1. Streamlit Community Cloud for the frontend at `frontend/dashboard.py`.
+2. GitHub-hosted source for the FastAPI backend, with the app ready to move to Render if you want a separate API runtime later.
+
+The repo now includes Streamlit theme/config defaults so the UI renders consistently when deployed.
+
+### Suggested deployment steps
+
+1. Push the repository to GitHub.
+2. Connect the repo to Streamlit Community Cloud and point it at `frontend/dashboard.py`.
+3. If you split the backend out later, keep the same API contracts under `backend/api/routes.py`.
+4. Use the sidebar Home link as the public landing page.
+
 ## AI Agents
 
 1. **Market Analyst**: trend and technical context.

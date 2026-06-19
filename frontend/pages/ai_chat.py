@@ -2,6 +2,8 @@
 import streamlit as st
 import time
 
+from backend.services.insight_service import InsightService
+
 from frontend.sidebar import inject_styles, render_sidebar
 
 st.set_page_config(page_title="AI Chat — IntelStock", layout="wide")
@@ -21,13 +23,15 @@ st.markdown("""
 
 render_sidebar()
 
+insight_service = InsightService()
+
 st.markdown("<h1 style='color:#e2e8f0;font-size:1.6rem;font-weight:700;margin-bottom:4px;'>AI Stock Assistant</h1>", unsafe_allow_html=True)
 st.markdown("<div style='color:#64748b;font-size:0.8rem;margin-bottom:20px;'>Ask about any NSE/BSE stock, sector, or market condition</div>", unsafe_allow_html=True)
 
 # Quick prompts
 st.markdown("<div style='margin-bottom:12px;'>", unsafe_allow_html=True)
 qp_cols = st.columns(4)
-quick_prompts = ["Analyze RELIANCE", "Nifty outlook today", "Top IT stocks to watch", "FII activity this week"]
+quick_prompts = ["Analyze RELIANCE", "Nifty outlook today", "Top IT stocks to watch", "HDFC near-term view"]
 for i, qp in enumerate(quick_prompts):
     with qp_cols[i]:
         if st.button(qp, use_container_width=True, key=f"qp_{i}"):
@@ -39,27 +43,26 @@ st.markdown("</div>", unsafe_allow_html=True)
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 
-AI_RESPONSES = {
-    "reliance": "**RELIANCE** is showing strong bullish momentum. Q4 FY26 results beat estimates with Jio revenue up 12% YoY and retail segment delivering record margins. Key support: ₹2,880 · Resistance: ₹3,050. AI Sentiment: **Bullish (82%)**. Recommendation: Hold / Accumulate on dips.",
-    "tcs": "**TCS** continues to outperform the IT index. US deal pipeline is strong with $2.4B in large deal wins. Trading near all-time highs. Key levels: support ₹3,980, resistance ₹4,280. Sentiment: **Bullish (78%)**.",
-    "nifty": "**Nifty 50** is in a strong uptrend at 24,762. FII buying ₹2,847 Cr today. Positive market breadth — advances outnumber declines 3:1. Key levels: support 24,400, resistance 25,000. Short-term outlook: **Bullish**.",
-    "it": "Top IT stocks to watch: **INFY** (strongest momentum, +3.1%), **TCS** (large deal wins), **HCLTECH** (margin recovery story), **WIPRO** (restructuring upside). Sector sentiment is **Bullish (78%)** driven by US demand recovery.",
-    "fii": "FII activity this week: Net buying of **₹12,480 Cr** over 5 sessions. Heaviest buying in IT (+₹4,200 Cr) and Energy (+₹3,100 Cr). Selling in PSU Banks (-₹1,240 Cr). Sustained FII inflows are a positive signal for market direction.",
-    "default": ["The Nifty 50 is in a strong uptrend with 73% of top stocks showing positive momentum. FII inflows remain supportive. Key risk: US Fed rate decision next week.",
-                "Sector rotation is favoring IT and Energy. Banking faces near-term NIM compression but long-term outlook remains positive. Watch for RBI's next MPC minutes.",
-                "My sentiment model signals **Bullish** across 47 of 50 Nifty stocks. RSI is at 62 — elevated but not overbought. Recommended action: Stay invested, tighten stop-losses.",
-                "Market breadth is strong — 1,840 advances vs 780 declines on NSE. Mid-cap and small-cap indices outperforming large-caps. Risk-on sentiment prevailing."]
-}
+def infer_symbol(msg: str) -> str:
+    normalized = msg.upper()
+    for symbol in ("RELIANCE", "TCS", "INFY", "WIPRO", "HDFC", "HDFCBANK", "NIFTY"):
+        if symbol in normalized:
+            return symbol
+    if any(token in normalized for token in ("INDEX", "MARKET", "FII", "IT STOCKS", "SECTOR")):
+        return "NIFTY"
+    return "RELIANCE"
 
-def get_ai_response(msg):
-    m = msg.lower()
-    if 'reliance' in m: return AI_RESPONSES['reliance']
-    if 'tcs' in m: return AI_RESPONSES['tcs']
-    if 'nifty' in m or 'market' in m: return AI_RESPONSES['nifty']
-    if 'it ' in m or 'infosys' in m or 'infy' in m: return AI_RESPONSES['it']
-    if 'fii' in m: return AI_RESPONSES['fii']
-    idx = len(st.session_state.messages) % len(AI_RESPONSES['default'])
-    return AI_RESPONSES['default'][idx]
+
+def build_ai_response(msg: str) -> dict[str, object]:
+    symbol = infer_symbol(msg)
+    report = insight_service.generate_report(symbol, msg)
+    response_lines = [
+        f"**{report['name']}** · {report['quote']['sentiment']} bias",
+        report["summary"],
+        f"Recommendation: **{report['recommendation']}**",
+        f"Support / resistance: ₹{report['quote']['support']:,} / ₹{report['quote']['resistance']:,}",
+    ]
+    return {"symbol": symbol, "report": report, "content": "\n\n".join(response_lines)}
 
 # Display messages
 for msg in st.session_state.messages:
@@ -68,6 +71,18 @@ for msg in st.session_state.messages:
         st.markdown("<div class='msg-meta' style='text-align:right;'>You</div>", unsafe_allow_html=True)
     else:
         st.markdown(f"<div style='display:flex;margin-bottom:12px;gap:10px;'><div style='width:28px;height:28px;border-radius:50%;background:rgba(0,212,170,0.12);display:grid;place-items:center;font-size:0.6rem;font-weight:700;color:#00d4aa;flex-shrink:0;'>AI</div><div class='ai-msg'>{msg['content']}</div></div>", unsafe_allow_html=True)
+        report = msg.get('report')
+        if report:
+            st.markdown(
+                f"""
+                <div style='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:-4px 0 16px 38px;'>
+                  <div class='intel-card' style='margin:0;padding:14px 16px;'><div style='font-size:0.7rem;color:#64748b;'>Confidence</div><div style='font-size:1.2rem;font-weight:700;color:#e2e8f0;'>{report['confidence']}</div></div>
+                  <div class='intel-card' style='margin:0;padding:14px 16px;'><div style='font-size:0.7rem;color:#64748b;'>Signal</div><div style='font-size:1.2rem;font-weight:700;color:#e2e8f0;'>{report['sentiment']['label']}</div></div>
+                  <div class='intel-card' style='margin:0;padding:14px 16px;'><div style='font-size:0.7rem;color:#64748b;'>Action</div><div style='font-size:1.0rem;font-weight:700;color:#e2e8f0;'>{report['recommendation']}</div></div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
 # Chat input
 st.markdown("<br>", unsafe_allow_html=True)
@@ -82,8 +97,8 @@ if submitted and user_input.strip():
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.spinner("IntelStock AI is thinking..."):
         time.sleep(0.6)
-    response = get_ai_response(user_input)
-    st.session_state.messages.append({"role": "assistant", "content": response})
+    response = build_ai_response(user_input)
+    st.session_state.messages.append({"role": "assistant", "content": response['content'], "report": response['report']})
     st.rerun()
 
 # Welcome state
