@@ -1,136 +1,333 @@
 # IntelStock
 
-AI-powered stock intelligence platform focused on Indian markets (NSE/BSE), combining market data, news, sentiment analysis, RAG context retrieval, and conversational AI research.
+🚀 **AI-powered stock intelligence platform for Indian markets (NSE/BSE)** with real-time insights, sentiment analysis, RAG-enhanced research, and conversational AI.
 
-## Demo
+## 🎯 What's New
 
-See [docs/demo.md](docs/demo.md) for a short product walkthrough, suggested sample queries, and a deployment-friendly demo flow.
+**v2.0 - Production Ready**
+- ✨ OpenRouter LLM integration for AI-powered recommendations
+- 🔍 RAG pipeline with FAISS vector store for context-aware insights
+- 💬 Real-time streaming chat for live AI responses
+- 🗄️ SQLAlchemy database layer with SQLite (MVP) and PostgreSQL support
+- 📊 Portfolio tracking and watchlist management
+- 🎨 Enhanced Streamlit dashboard with dark theme
 
-## Architecture
+## ⚡ Quick Start
 
-```text
-IntelStock/
-├── frontend/                  # Streamlit dashboard + pages
-├── backend/                   # FastAPI APIs and AI services
-├── vectorstore/               # FAISS index artifacts
-├── data/                      # Local data snapshots/cache
-├── tests/                     # Focused validation tests
-├── docs/                      # Architecture and workflows
-├── docker/                    # Container assets
-├── requirements/              # Dependency groups
-├── .streamlit/                # Streamlit deployment and theme config
-└── README.md
+### Prerequisites
+```bash
+Python 3.9+
+pip/virtualenv
 ```
 
-## Modules
+### Installation
 
-- **Frontend (Streamlit):** dashboard, charts, tables, chat UI.
-- **Backend (FastAPI):** API layer and orchestration.
-- **Market Data Service:** structured quote and market profile lookup.
-- **News Intelligence Service:** curated company headlines and summaries.
-- **Sentiment Analysis Service:** lightweight bullish/bearish scoring.
-- **RAG Engine:** chunking, embeddings, FAISS retrieval.
-- **LLM Insight Engine:** AI summaries, catalysts, and recommendations.
-- **Database Layer:** SQLite for MVP, PostgreSQL-ready architecture.
-- **Background Scheduler:** periodic refresh workflows.
-
-## API Surface (MVP)
-
-- `GET /stock`
-- `GET /news`
-- `GET /sentiment`
-- `GET /insights`
-- `POST /chat`
-- `GET /portfolio`
-- `GET /watchlist`
-
-## Dashboard Pages
-
-- Overview
-- Stock Research
-- Sentiment Dashboard
-- Portfolio Analyzer
-- AI Chat
-
-## What Works Right Now
-
-- A clean dark Streamlit dashboard with a shared sidebar and section navigation.
-- AI chat responses that return structured summaries, recommendations, catalysts, and risks.
-- Stock research views driven by lightweight market profiles instead of pure placeholder text.
-- Sentiment and portfolio pages with a consistent visual system.
-- No-cost Streamlit deployment settings in [`.streamlit/config.toml`](.streamlit/config.toml).
-
-## Run Locally
-
-Install dependencies:
-
+1. **Clone and setup:**
 ```bash
-python -m pip install -r requirements/base.txt
+git clone https://github.com/Chanukya07/IntelStock.git
+cd IntelStock
 ```
 
-Run the Streamlit app:
-
+2. **Install dependencies:**
 ```bash
-python -m streamlit run frontend/dashboard.py
+pip install -r requirements/base.txt
 ```
 
-If port `8501` is already taken, Streamlit will use a different free port or you can pass one explicitly:
-
+3. **Configure environment:**
 ```bash
-python -m streamlit run frontend/dashboard.py --server.port 8509
+cp .env.example .env
+# Edit .env and add your OpenRouter API key from https://openrouter.ai
 ```
 
-Run the FastAPI backend separately if needed:
-
+4. **Initialize database:**
 ```bash
+python -c "from backend.database import init_db; init_db()"
+```
+
+5. **Run the app:**
+```bash
+# Streamlit frontend (default: http://localhost:8501)
+streamlit run frontend/dashboard.py
+
+# FastAPI backend (in another terminal, default: http://localhost:8000)
 uvicorn backend.main:app --reload
 ```
 
-## Free Hosting Path
+## 🏗️ Architecture
 
-The easiest no-cost hosting setup for this repository is:
+```
+IntelStock/
+├── frontend/                    # Streamlit dashboard
+│   ├── dashboard.py            # Main entry point
+│   ├── pages/                  # Multi-page app
+│   │   ├── overview.py
+│   │   ├── ai_chat.py          # Real-time chat interface
+│   │   ├── stock_research.py
+│   │   ├── sentiment_dashboard.py
+│   │   └── portfolio_analyzer.py
+│   ├── components/
+│   │   ├── chat_interface.py   # Reusable chat widget
+│   │   └── sidebar.py
+│   └── sidebar.py
+│
+├── backend/
+│   ├── main.py                 # FastAPI entrypoint
+│   ├── config.py               # Environment configuration
+│   ├── api/
+│   │   └── routes.py           # API endpoints
+│   ├── services/               # Business logic layer
+│   │   ├── chat_service.py     # Streaming chat with RAG
+│   │   ├── insight_service.py  # AI recommendations
+│   │   ├── sentiment_service.py # Sentiment analysis
+│   │   ├── market_data_service.py
+│   │   └── news_intelligence_service.py
+│   ├── agents/                 # AI agent implementations
+│   │   └── research_agents.py
+│   ├── rag/                    # Retrieval Augmented Generation
+│   │   ├── chunking.py         # Text preprocessing
+│   │   ├── embeddings.py       # Sentence transformers
+│   │   ├── vectorstore.py      # FAISS storage
+│   │   ├── retriever.py        # Document retrieval
+│   │   └── pipeline.py         # RAG workflow
+│   └── database/               # Data persistence
+│       ├── models.py           # SQLAlchemy ORM models
+│       ├── session.py          # Database connection
+│       ├── repositories.py     # Data access layer
+│       └── __init__.py
+│
+├── requirements/
+│   └── base.txt                # Python dependencies
+├── .env.example                # Environment template
+├── .streamlit/                 # Streamlit config
+└── README.md
+```
 
-1. Streamlit Community Cloud for the frontend at `frontend/dashboard.py`.
-2. Render or Railway for the FastAPI backend if you want a separate API runtime.
-3. GitHub as the source of truth for app code, docs, and deployment settings.
+## 🤖 Features
 
-The repo now includes Streamlit theme/config defaults so the UI renders consistently when deployed.
+### AI & Intelligence
+- **OpenRouter LLM Integration** - Free models for AI recommendations
+- **Real-time Streaming** - Live token-by-token AI responses
+- **RAG Pipeline** - Context-aware insights from indexed documents
+- **Sentiment Analysis** - AI-powered bullish/bearish scoring
+- **Dynamic Recommendations** - Context-aware investment thesis
 
-### Suggested deployment steps
+### Data & Analytics
+- **Live Market Data** - Stock quotes, support/resistance levels
+- **News Intelligence** - Curated headlines with sentiment
+- **Portfolio Tracking** - Holdings with P&L calculations
+- **Watchlist Management** - Price alerts and monitoring
+- **Chat History** - Persistent conversation logs
 
-1. Push the repository to GitHub.
-2. Connect the repo to Streamlit Community Cloud and point it at `frontend/dashboard.py`.
-3. If you split the backend out later, keep the same API contracts under `backend/api/routes.py`.
-4. Use the sidebar Home link as the public landing page.
-5. Add your GitHub repository URL to the demo file so reviewers can launch the app quickly.
+### Database
+- **SQLite (MVP)** - Local development database
+- **PostgreSQL Ready** - Production-grade ORM support
+- **8 Core Models** - User, Chat, Quote, News, Sentiment, Portfolio, Watchlist, Insight
+- **Repository Pattern** - Clean data access layer
 
-## API Surface (Current)
+## 📡 API Surface
 
-- `GET /stock` returns a structured market profile.
-- `GET /news` returns a small curated headline list.
-- `GET /sentiment` returns a lightweight sentiment score.
-- `GET /insights` returns a generated recommendation brief.
-- `POST /chat` returns a richer research answer built from the insight service.
-- `GET /portfolio` and `GET /watchlist` remain scaffold endpoints.
+### Core Endpoints
+```
+GET  /stock              → Live stock quote
+GET  /news               → Company headlines
+GET  /sentiment          → Sentiment analysis
+GET  /insights           → AI-generated report
+POST /chat               → Chat response (JSON)
+POST /chat/stream        → Streaming chat response
+```
 
-## Notes for Reviewers
+### Portfolio & Watchlist
+```
+GET  /portfolio          → User holdings with P&L
+POST /portfolio          → Add stock to portfolio
+GET  /watchlist          → Watched stocks
+POST /watchlist          → Add to watchlist
+DELETE /watchlist/{id}   → Remove from watchlist
+```
 
-- The app is currently optimized for presentation and fast iteration, not live market data ingestion.
-- The AI layer is structured so external providers can be added later without changing the UI contract.
-- The shared sidebar is intentionally reusable across all Streamlit pages.
+### RAG & Knowledge
+```
+POST /rag/index          → Index document
+POST /rag/search         → Search indexed documents
+POST /rag/context        → Get context for query
+DELETE /rag/clear        → Clear vector store
+```
 
-## AI Agents
+### Health & Status
+```
+GET /health              → API health check
+```
 
-1. **Market Analyst**: trend and technical context.
-2. **News Analyst**: key events and impact extraction.
-3. **Sentiment Analyst**: bullish/bearish scoring.
-4. **Research Agent**: investment thesis and risk-reward summary.
+## 🚀 Deployment
 
-## Deliverables in this repository
+### Streamlit Community Cloud (Frontend)
+1. Push repo to GitHub
+2. Connect to Streamlit Cloud
+3. Point to `frontend/dashboard.py`
+4. Set environment variables (OPENROUTER_API_KEY, DATABASE_URL)
 
-- Production-oriented folder scaffold.
-- FastAPI backend entrypoint with required API routes.
-- Streamlit frontend entrypoint with required pages.
-- Architecture/workflow docs for RAG, services, and deployment.
-- Focused tests validating required scaffold and endpoint contract.
-- Demo walkthrough and deployment-ready README guidance.
+### Railway/Render (Backend)
+```bash
+uvicorn backend.main:app --host 0.0.0.0 --port 8000
+```
+
+### Environment Variables
+```
+OPENROUTER_API_KEY=sk-or-v1-...      # Your OpenRouter API key
+LLM_MODEL=meta-llama/llama-2-7b-chat # Model selection
+DATABASE_URL=postgresql://...        # PostgreSQL connection (optional)
+```
+
+## 💾 Database Models
+
+### User
+- Manages user accounts and profiles
+- Links to chats, portfolio, watchlist
+
+### Chat
+- Persistent conversation history
+- Stores query, response, metadata
+- Linked to user and stock symbol
+
+### StockQuote
+- Market snapshots (price, change, support/resistance)
+- Auto-updated from market data service
+
+### Portfolio
+- User holdings with quantity and average cost
+- Calculates gain/loss vs current price
+
+### Watchlist
+- Tracked stocks with optional alerts
+- Price alert thresholds and alert types
+
+### Sentiment & Insight
+- Historical sentiment scores
+- AI-generated investment theses
+
+## 🔧 Configuration
+
+### .env Template
+```bash
+# OpenRouter API (from https://openrouter.ai)
+OPENROUTER_API_KEY=your_api_key_here
+LLM_MODEL=meta-llama/llama-2-7b-chat
+OPENROUTER_API_BASE=https://openrouter.ai/api/v1
+
+# Database (optional, defaults to SQLite)
+DATABASE_URL=sqlite:///./intelstock.db
+# For PostgreSQL: DATABASE_URL=postgresql://user:password@localhost/intelstock
+```
+
+### Streamlit Config
+- Dark theme enabled by default
+- Wide layout for dashboards
+- Custom fonts (Inter, JetBrains Mono)
+- See `.streamlit/config.toml` for customization
+
+## 🧪 Testing
+
+```bash
+# Run tests
+pytest tests/
+
+# Check imports
+python -c "from backend.services.chat_service import ChatService; print('✓ OK')"
+```
+
+## 📊 Dashboard Pages
+
+1. **Overview** - Market summary and key metrics
+2. **Stock Research** - Detailed analysis with AI insights
+3. **Sentiment Dashboard** - Market sentiment trends
+4. **Portfolio Analyzer** - Holdings and performance
+5. **AI Chat** - Real-time conversational research
+
+## 🎓 Example Queries
+
+Try asking the AI:
+- "Analyze RELIANCE"
+- "What's the outlook for TCS?"
+- "Nifty technical analysis"
+- "Top IT stocks to watch"
+- "HDFC near-term view"
+- "Show me bearish signals"
+
+## 🛠️ Tech Stack
+
+**Frontend:**
+- Streamlit - Interactive dashboards
+- Plotly - Advanced charts
+- pandas - Data manipulation
+
+**Backend:**
+- FastAPI - REST API framework
+- SQLAlchemy - ORM database layer
+- OpenAI SDK - LLM integration
+- sentence-transformers - Embeddings
+- FAISS - Vector similarity search
+
+**AI/ML:**
+- OpenRouter - LLM provider (free models)
+- sentence-transformers - Embeddings
+- FAISS - Vector database
+
+**Database:**
+- SQLite - Development
+- PostgreSQL - Production
+
+## 🔐 Security
+
+- API keys stored in `.env` (excluded from git)
+- Database credentials in environment variables
+- No credentials in code or commits
+- CORS and rate limiting recommended for production
+
+## 📈 Roadmap
+
+- [ ] Background scheduler for data refresh
+- [ ] User authentication system
+- [ ] Advanced portfolio analytics
+- [ ] Real-time price alerts
+- [ ] Mobile app support
+- [ ] Multi-language support
+- [ ] Custom watchlist alerts
+- [ ] Export reports as PDF
+
+## 🤝 Contributing
+
+Contributions welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## 📝 License
+
+This project is open source and available under the MIT License.
+
+## 💬 Support
+
+For issues, questions, or suggestions:
+- Open a GitHub issue
+- Check existing documentation
+- Review the demo walkthrough
+
+## 🎉 What Works Right Now
+
+✅ Real-time chat with AI-powered responses  
+✅ Streaming token delivery for better UX  
+✅ RAG-enhanced context retrieval  
+✅ Sentiment analysis with confidence scoring  
+✅ Stock quotes and market data  
+✅ Portfolio tracking with P&L  
+✅ Watchlist management  
+✅ Persistent chat history  
+✅ Dark theme dashboard  
+✅ Fast, responsive interface  
+
+---
+
+**Built with ❤️ for Indian market traders and investors**
+
+*Powered by OpenRouter LLM • Enhanced with RAG • Backed by SQLAlchemy*
