@@ -1,9 +1,11 @@
 """API routes for IntelStock MVP surface."""
 
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from backend.rag.retriever import RAGRetriever
+from backend.services.chat_service import ChatService
 from backend.services.insight_service import InsightService
 from backend.services.market_data_service import MarketDataService
 from backend.services.news_intelligence_service import NewsIntelligenceService
@@ -15,6 +17,7 @@ news_service = NewsIntelligenceService()
 sentiment_service = SentimentService()
 insight_service = InsightService()
 rag_retriever = RAGRetriever()
+chat_service = ChatService()
 
 
 class ChatRequest(BaseModel):
@@ -70,16 +73,16 @@ def _infer_symbol(query: str) -> str:
 
 @router.post("/chat")
 def chat(payload: ChatRequest) -> dict[str, object]:
-    symbol = _infer_symbol(payload.query)
-    report = insight_service.generate_report(symbol, payload.query)
-    return {
-        "symbol": symbol,
-        "message": report["summary"],
-        "recommendation": report["recommendation"],
-        "confidence": report["confidence"],
-        "catalysts": report["catalysts"],
-        "risks": report["risks"],
-    }
+    return chat_service.chat(payload.query)
+
+
+@router.post("/chat/stream")
+def chat_stream(payload: ChatRequest) -> StreamingResponse:
+    """Stream chat response for real-time updates."""
+    return StreamingResponse(
+        chat_service.chat_stream(payload.query),
+        media_type="text/event-stream",
+    )
 
 
 @router.get("/portfolio")
@@ -115,3 +118,10 @@ def clear_rag_index() -> dict[str, str]:
     """Clear all indexed documents."""
     rag_retriever.clear_index()
     return {"status": "ok", "message": "RAG index cleared"}
+
+
+@router.post("/rag/context")
+def get_rag_context(payload: RAGQueryRequest) -> dict[str, object]:
+    """Get RAG context for a query."""
+    context = chat_service.get_rag_context(payload.query, payload.symbol)
+    return {"status": "ok", "query": payload.query, "context": context}
