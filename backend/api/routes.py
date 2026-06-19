@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from backend.rag.retriever import RAGRetriever
 from backend.services.insight_service import InsightService
 from backend.services.market_data_service import MarketDataService
 from backend.services.news_intelligence_service import NewsIntelligenceService
@@ -13,10 +14,23 @@ market_data_service = MarketDataService()
 news_service = NewsIntelligenceService()
 sentiment_service = SentimentService()
 insight_service = InsightService()
+rag_retriever = RAGRetriever()
 
 
 class ChatRequest(BaseModel):
     query: str
+
+
+class IndexDocumentRequest(BaseModel):
+    text: str
+    symbol: str = ""
+    title: str = ""
+
+
+class RAGQueryRequest(BaseModel):
+    query: str
+    symbol: str = ""
+    top_k: int = 5
 
 
 @router.get("/stock")
@@ -76,3 +90,28 @@ def get_portfolio(user_id: int) -> dict[str, int | str]:
 @router.get("/watchlist")
 def get_watchlist(user_id: int) -> dict[str, int | str]:
     return {"user_id": user_id, "message": "Watchlist placeholder"}
+
+
+@router.post("/rag/index")
+def index_document(payload: IndexDocumentRequest) -> dict[str, str]:
+    """Index a document for RAG retrieval."""
+    rag_retriever.index_document(payload.text, symbol=payload.symbol, title=payload.title)
+    return {"status": "ok", "message": f"Document indexed for {payload.symbol or 'general'} analysis"}
+
+
+@router.post("/rag/search")
+def search_rag(payload: RAGQueryRequest) -> dict[str, object]:
+    """Search indexed documents using RAG."""
+    if payload.symbol:
+        context = rag_retriever.retrieve_symbol_context(payload.symbol, payload.query, top_k=payload.top_k)
+    else:
+        context = rag_retriever.retrieve_context(payload.query, top_k=payload.top_k)
+
+    return {"status": "ok", "query": payload.query, "context": context}
+
+
+@router.delete("/rag/clear")
+def clear_rag_index() -> dict[str, str]:
+    """Clear all indexed documents."""
+    rag_retriever.clear_index()
+    return {"status": "ok", "message": "RAG index cleared"}
