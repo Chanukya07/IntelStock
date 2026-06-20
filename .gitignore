@@ -1,12 +1,22 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+
+# Secrets / credentials
 .env
 .env.local
 *.pem
 *.key
+
+# Local databases
 *.db
 *.sqlite
 *.sqlite3
-vectorstore/
-data/
+
+# Generated data & vector store artifacts.
+# Keep the directories present (required by the project scaffold) via .gitkeep,
+# but ignore everything generated inside them.
+/data/*
+!/data/.gitkeep
+/vectorstore/*
+!/vectorstore/.gitkeep

@@ -6,8 +6,12 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.database import (
-    get_db, PortfolioRepository, WatchlistRepository,
-    ChatRepository, StockQuoteRepository, InsightRepository
+    get_db,
+    ChatRepository,
+    InsightRepository,
+    PortfolioRepository,
+    StockRepository,
+    WatchlistRepository,
 )
 from backend.rag.retriever import RAGRetriever
 from backend.services.chat_service import ChatService
@@ -43,14 +47,12 @@ class RAGQueryRequest(BaseModel):
 
 class PortfolioItem(BaseModel):
     symbol: str
-    quantity: int
+    quantity: float
     average_cost: float
 
 
 class WatchlistItem(BaseModel):
     symbol: str
-    alert_price: float | None = None
-    alert_type: str | None = None
 
 
 @router.get("/stock")
@@ -78,19 +80,12 @@ def get_insights(symbol: str) -> dict[str, object]:
     return insight_service.generate_report(symbol)
 
 
-def _infer_symbol(query: str) -> str:
-    normalized = query.upper()
-    for symbol in ("RELIANCE", "TCS", "INFY", "WIPRO", "HDFC", "HDFCBANK", "NIFTY"):
-        if symbol in normalized:
-            return symbol
-    if any(token in normalized for token in ("INDEX", "MARKET", "NSE", "SENSEX")):
-        return "NIFTY"
-    return "RELIANCE"
-
-
 @router.post("/chat")
-def chat(payload: ChatRequest) -> dict[str, object]:
-    return chat_service.chat(payload.query)
+def chat(payload: ChatRequest, db: Session = Depends(get_db)) -> dict[str, object]:
+    result = chat_service.chat(payload.query)
+    # Persist the exchange (user_id is optional until auth lands).
+    ChatRepository(db).create(prompt=payload.query, response=result["message"])
+    return result
 
 
 @router.post("/chat/stream")
@@ -104,67 +99,65 @@ def chat_stream(payload: ChatRequest) -> StreamingResponse:
 
 @router.get("/portfolio")
 def get_portfolio(user_id: int, db: Session = Depends(get_db)) -> dict[str, object]:
-    """Get user's portfolio."""
-    repo = PortfolioRepository(db)
-    portfolio = repo.get_user_portfolio(user_id)
-    total_value = sum(p.current_price * p.quantity for p in portfolio if p.current_price)
-    return {
-        "user_id": user_id,
-        "portfolio": [
+    """Get user's portfolio with live mark-to-market P&L."""
+    holdings = PortfolioRepository(db).get_user_portfolio(user_id)
+
+    items: list[dict[str, object]] = []
+    total_value = 0.0
+    for holding in holdings:
+        symbol = holding.stock.symbol
+        quantity = float(holding.quantity)
+        avg_price = float(holding.avg_price)
+        current_price = float(market_data_service.fetch_live_quote(symbol)["price"])
+        market_value = current_price * quantity
+        total_value += market_value
+        items.append(
             {
-                "id": p.id,
-                "symbol": p.symbol,
-                "quantity": p.quantity,
-                "average_cost": p.average_cost,
-                "current_price": p.current_price,
-                "gain_loss": (p.current_price - p.average_cost) * p.quantity if p.current_price else 0,
+                "id": holding.id,
+                "symbol": symbol,
+                "quantity": quantity,
+                "avg_price": avg_price,
+                "current_price": current_price,
+                "market_value": round(market_value, 2),
+                "gain_loss": round((current_price - avg_price) * quantity, 2),
             }
-            for p in portfolio
-        ],
-        "total_value": total_value,
-    }
+        )
+
+    return {"user_id": user_id, "portfolio": items, "total_value": round(total_value, 2)}
 
 
 @router.post("/portfolio")
 def add_portfolio(user_id: int, item: PortfolioItem, db: Session = Depends(get_db)) -> dict[str, object]:
-    """Add stock to portfolio."""
-    repo = PortfolioRepository(db)
-    portfolio = repo.create(user_id, item.symbol, item.quantity, item.average_cost)
-    return {"status": "ok", "portfolio_id": portfolio.id}
+    """Add a holding to the user's portfolio."""
+    quote = market_data_service.fetch_live_quote(item.symbol)
+    stock = StockRepository(db).get_or_create(item.symbol, company_name=quote.get("name"))
+    holding = PortfolioRepository(db).create(user_id, stock.id, item.quantity, item.average_cost)
+    return {"status": "ok", "portfolio_id": holding.id, "symbol": item.symbol}
 
 
 @router.get("/watchlist")
 def get_watchlist(user_id: int, db: Session = Depends(get_db)) -> dict[str, object]:
     """Get user's watchlist."""
-    repo = WatchlistRepository(db)
-    watchlist = repo.get_user_watchlist(user_id)
+    entries = WatchlistRepository(db).get_user_watchlist(user_id)
     return {
         "user_id": user_id,
-        "watchlist": [
-            {
-                "id": w.id,
-                "symbol": w.symbol,
-                "alert_price": w.alert_price,
-                "alert_type": w.alert_type,
-            }
-            for w in watchlist
-        ],
+        "watchlist": [{"id": w.id, "symbol": w.stock.symbol} for w in entries],
     }
 
 
 @router.post("/watchlist")
 def add_watchlist(user_id: int, item: WatchlistItem, db: Session = Depends(get_db)) -> dict[str, object]:
-    """Add stock to watchlist."""
-    repo = WatchlistRepository(db)
-    watchlist = repo.create(user_id, item.symbol, item.alert_price, item.alert_type)
-    return {"status": "ok", "watchlist_id": watchlist.id}
+    """Add a stock to the user's watchlist."""
+    quote = market_data_service.fetch_live_quote(item.symbol)
+    stock = StockRepository(db).get_or_create(item.symbol, company_name=quote.get("name"))
+    entry = WatchlistRepository(db).create(user_id, stock.id)
+    return {"status": "ok", "watchlist_id": entry.id, "symbol": item.symbol}
 
 
 @router.delete("/watchlist/{watchlist_id}")
 def remove_watchlist(watchlist_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
-    """Remove stock from watchlist."""
-    repo = WatchlistRepository(db)
-    success = repo.delete(watchlist_id)
+    """Remove a stock from the user's watchlist."""
+    success = WatchlistRepository(db).delete(watchlist_id)
     return {"status": "ok" if success else "error", "message": "Item removed" if success else "Item not found"}
 
 

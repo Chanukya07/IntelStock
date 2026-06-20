@@ -1,0 +1,2 @@
+# Keeps the FAISS vector store directory present in fresh clones.
+# Index artifacts (index.faiss, metadata.pkl) are generated at runtime and gitignored.

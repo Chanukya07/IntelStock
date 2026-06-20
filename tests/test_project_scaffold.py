@@ -28,6 +28,33 @@ def _routes_module() -> ast.Module:
     return ast.parse(source)
 
 
+def _client_facing_params(node: ast.FunctionDef) -> list[str]:
+    """Return an endpoint's client-facing parameters.
+
+    FastAPI dependency-injected parameters (``param: T = Depends(...)``) are
+    implementation plumbing and are excluded from the OpenAPI query schema, so
+    they are filtered out here to keep the contract check meaningful.
+    """
+    args = node.args.args
+    defaults = node.args.defaults
+    default_by_arg: dict[str, ast.expr] = {}
+    if defaults:
+        for arg, default in zip(args[len(args) - len(defaults):], defaults):
+            default_by_arg[arg.arg] = default
+
+    names: list[str] = []
+    for arg in args:
+        default = default_by_arg.get(arg.arg)
+        if (
+            isinstance(default, ast.Call)
+            and isinstance(default.func, ast.Name)
+            and default.func.id == "Depends"
+        ):
+            continue
+        names.append(arg.arg)
+    return names
+
+
 def test_required_structure_exists() -> None:
     for rel in REQUIRED_PATHS:
         assert (ROOT / rel).exists(), f"Missing path: {rel}"
@@ -69,7 +96,7 @@ def test_key_endpoint_parameters_are_declared() -> None:
 
     for node in module.body:
         if isinstance(node, ast.FunctionDef):
-            signatures[node.name] = [arg.arg for arg in node.args.args]
+            signatures[node.name] = _client_facing_params(node)
 
     assert signatures["get_stock"] == ["symbol"]
     assert signatures["get_news"] == ["symbol", "source"]
