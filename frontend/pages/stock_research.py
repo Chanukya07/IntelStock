@@ -1,6 +1,8 @@
 """Stock Research page."""
 import streamlit as st
 import plotly.graph_objects as go
+import os, sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import numpy as np
 
 from backend.services.insight_service import InsightService
