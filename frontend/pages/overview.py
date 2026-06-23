@@ -31,7 +31,7 @@ b_val, b_chg, b_pct, b_st = fmt(idx, "SENSEX")
 bn_val, bn_chg, bn_pct, bn_st = fmt(idx, "BANKNIFTY")
 v_val, v_chg, v_pct, v_st = fmt(idx, "INDIAVIX")
 
-st_live = lambda s: f" &#183; <span style='color:#34d399;font-size:0.65rem;'>LIVE</span>" if s == "live" else f" &#183; <span style='color:#64748b;font-size:0.65rem;'>cached</span>"
+st_live = lambda s: " 🟢 LIVE" if s == "live" else " ⚪ cached"
 
 c1,c2,c3,c4 = st.columns(4)
 with c1: st.metric("NIFTY 50", f"{int(n_val):,}", f"+{int(n_chg):,} ({n_pct:+.2f}%) {st_live(n_st)}")
