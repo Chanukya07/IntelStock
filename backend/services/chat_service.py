@@ -21,11 +21,22 @@ SYSTEM_PROMPT = (
 class ChatService:
     def __init__(self) -> None:
         """Initialize chat service with streaming support."""
-        self.client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_API_BASE)
+        self._client: OpenAI | None = None
         self.insight_service = InsightService()
         self.market_data_service = MarketDataService()
         self.news_service = NewsIntelligenceService()
         self.rag_retriever = RAGRetriever()
+
+    @property
+    def client(self) -> OpenAI:
+        """Lazy-initialize OpenAI client only when first needed."""
+        if self._client is None:
+            if not OPENROUTER_API_KEY:
+                raise RuntimeError(
+                    "OPENROUTER_API_KEY not set. Configure it in .env to enable AI chat."
+                )
+            self._client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_API_BASE)
+        return self._client
 
     def _infer_symbol(self, query: str) -> str:
         """Extract stock symbol from query."""

@@ -16,8 +16,16 @@ class InsightService:
         self.market_data_service = MarketDataService()
         self.news_service = NewsIntelligenceService()
         self.sentiment_service = SentimentService()
-        self.client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_API_BASE)
+        self._client: OpenAI | None = None
         self.rag_retriever = RAGRetriever()
+
+    @property
+    def client(self) -> OpenAI:
+        if self._client is None:
+            if not OPENROUTER_API_KEY:
+                raise RuntimeError("OPENROUTER_API_KEY not set. Configure it in .env.")
+            self._client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_API_BASE)
+        return self._client
 
     def _generate_ai_recommendation(self, quote: dict, sentiment: dict, news_text: str, query: str | None = None, symbol: str = "") -> tuple[str, list[str], list[str]]:
         """Generate AI-powered recommendation using RAG context from retrieved documents."""

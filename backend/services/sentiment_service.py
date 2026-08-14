@@ -38,7 +38,15 @@ NEGATIVE_TERMS = {
 
 class SentimentService:
     def __init__(self) -> None:
-        self.client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_API_BASE)
+        self._client: OpenAI | None = None
+
+    @property
+    def client(self) -> OpenAI:
+        if self._client is None:
+            if not OPENROUTER_API_KEY:
+                raise RuntimeError("OPENROUTER_API_KEY not set. Configure it in .env.")
+            self._client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_API_BASE)
+        return self._client
 
     def score_news(self, text: str) -> dict[str, float | str]:
         if not text or len(text.strip()) < 10:
