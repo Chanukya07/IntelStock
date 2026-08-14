@@ -5,6 +5,14 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from backend.api.validators import (
+    validate_document_text,
+    validate_portfolio_item,
+    validate_query,
+    validate_symbol,
+    validate_top_k,
+    validate_user_id,
+)
 from backend.database import (
     get_db,
     ChatRepository,
@@ -57,11 +65,13 @@ class WatchlistItem(BaseModel):
 
 @router.get("/stock")
 def get_stock(symbol: str) -> dict[str, str | float]:
+    symbol = validate_symbol(symbol)
     return market_data_service.fetch_live_quote(symbol)
 
 
 @router.get("/news")
 def get_news(symbol: str, source: str | None = None) -> dict[str, object]:
+    symbol = validate_symbol(symbol)
     news = news_service.fetch_company_news(symbol)
     if source:
         news["source"] = source
@@ -70,6 +80,7 @@ def get_news(symbol: str, source: str | None = None) -> dict[str, object]:
 
 @router.get("/sentiment")
 def get_sentiment(symbol: str) -> dict[str, object]:
+    symbol = validate_symbol(symbol)
     quote = market_data_service.fetch_live_quote(symbol)
     narrative = f"{quote['name']} shows {quote['sentiment'].lower()} momentum with a {quote['change_pct']:+.2f}% move."
     return sentiment_service.score_news(f"{quote['headline']} {narrative}") | {"symbol": quote["symbol"]}
@@ -77,22 +88,24 @@ def get_sentiment(symbol: str) -> dict[str, object]:
 
 @router.get("/insights")
 def get_insights(symbol: str) -> dict[str, object]:
+    symbol = validate_symbol(symbol)
     return insight_service.generate_report(symbol)
 
 
 @router.post("/chat")
 def chat(payload: ChatRequest, db: Session = Depends(get_db)) -> dict[str, object]:
-    result = chat_service.chat(payload.query)
-    # Persist the exchange (user_id is optional until auth lands).
-    ChatRepository(db).create(prompt=payload.query, response=result["message"])
+    query = validate_query(payload.query)
+    result = chat_service.chat(query)
+    ChatRepository(db).create(prompt=query, response=result["message"])
     return result
 
 
 @router.post("/chat/stream")
 def chat_stream(payload: ChatRequest) -> StreamingResponse:
     """Stream chat response for real-time updates."""
+    query = validate_query(payload.query)
     return StreamingResponse(
-        chat_service.chat_stream(payload.query),
+        chat_service.chat_stream(query),
         media_type="text/event-stream",
     )
 
@@ -100,6 +113,7 @@ def chat_stream(payload: ChatRequest) -> StreamingResponse:
 @router.get("/portfolio")
 def get_portfolio(user_id: int, db: Session = Depends(get_db)) -> dict[str, object]:
     """Get user's portfolio with live mark-to-market P&L."""
+    user_id = validate_user_id(user_id)
     holdings = PortfolioRepository(db).get_user_portfolio(user_id)
 
     items: list[dict[str, object]] = []
@@ -129,15 +143,18 @@ def get_portfolio(user_id: int, db: Session = Depends(get_db)) -> dict[str, obje
 @router.post("/portfolio")
 def add_portfolio(user_id: int, item: PortfolioItem, db: Session = Depends(get_db)) -> dict[str, object]:
     """Add a holding to the user's portfolio."""
-    quote = market_data_service.fetch_live_quote(item.symbol)
-    stock = StockRepository(db).get_or_create(item.symbol, company_name=quote.get("name"))
-    holding = PortfolioRepository(db).create(user_id, stock.id, item.quantity, item.average_cost)
-    return {"status": "ok", "portfolio_id": holding.id, "symbol": item.symbol}
+    user_id = validate_user_id(user_id)
+    symbol, quantity, avg_price = validate_portfolio_item(item.symbol, item.quantity, item.average_cost)
+    quote = market_data_service.fetch_live_quote(symbol)
+    stock = StockRepository(db).get_or_create(symbol, company_name=quote.get("name"))
+    holding = PortfolioRepository(db).create(user_id, stock.id, quantity, avg_price)
+    return {"status": "ok", "portfolio_id": holding.id, "symbol": symbol}
 
 
 @router.get("/watchlist")
 def get_watchlist(user_id: int, db: Session = Depends(get_db)) -> dict[str, object]:
     """Get user's watchlist."""
+    user_id = validate_user_id(user_id)
     entries = WatchlistRepository(db).get_user_watchlist(user_id)
     return {
         "user_id": user_id,
@@ -148,10 +165,12 @@ def get_watchlist(user_id: int, db: Session = Depends(get_db)) -> dict[str, obje
 @router.post("/watchlist")
 def add_watchlist(user_id: int, item: WatchlistItem, db: Session = Depends(get_db)) -> dict[str, object]:
     """Add a stock to the user's watchlist."""
-    quote = market_data_service.fetch_live_quote(item.symbol)
-    stock = StockRepository(db).get_or_create(item.symbol, company_name=quote.get("name"))
+    user_id = validate_user_id(user_id)
+    symbol = validate_symbol(item.symbol)
+    quote = market_data_service.fetch_live_quote(symbol)
+    stock = StockRepository(db).get_or_create(symbol, company_name=quote.get("name"))
     entry = WatchlistRepository(db).create(user_id, stock.id)
-    return {"status": "ok", "watchlist_id": entry.id, "symbol": item.symbol}
+    return {"status": "ok", "watchlist_id": entry.id, "symbol": symbol}
 
 
 @router.delete("/watchlist/{watchlist_id}")
@@ -164,19 +183,25 @@ def remove_watchlist(watchlist_id: int, db: Session = Depends(get_db)) -> dict[s
 @router.post("/rag/index")
 def index_document(payload: IndexDocumentRequest) -> dict[str, str]:
     """Index a document for RAG retrieval."""
-    rag_retriever.index_document(payload.text, symbol=payload.symbol, title=payload.title)
-    return {"status": "ok", "message": f"Document indexed for {payload.symbol or 'general'} analysis"}
+    text = validate_document_text(payload.text)
+    symbol = validate_symbol(payload.symbol) if payload.symbol else ""
+    rag_retriever.index_document(text, symbol=symbol, title=payload.title)
+    return {"status": "ok", "message": f"Document indexed for {symbol or 'general'} analysis"}
 
 
 @router.post("/rag/search")
 def search_rag(payload: RAGQueryRequest) -> dict[str, object]:
     """Search indexed documents using RAG."""
-    if payload.symbol:
-        context = rag_retriever.retrieve_symbol_context(payload.symbol, payload.query, top_k=payload.top_k)
-    else:
-        context = rag_retriever.retrieve_context(payload.query, top_k=payload.top_k)
+    query = validate_query(payload.query)
+    top_k = validate_top_k(payload.top_k)
+    symbol = validate_symbol(payload.symbol) if payload.symbol else ""
 
-    return {"status": "ok", "query": payload.query, "context": context}
+    if symbol:
+        context = rag_retriever.retrieve_symbol_context(symbol, query, top_k=top_k)
+    else:
+        context = rag_retriever.retrieve_context(query, top_k=top_k)
+
+    return {"status": "ok", "query": query, "context": context}
 
 
 @router.delete("/rag/clear")
@@ -189,5 +214,7 @@ def clear_rag_index() -> dict[str, str]:
 @router.post("/rag/context")
 def get_rag_context(payload: RAGQueryRequest) -> dict[str, object]:
     """Get RAG context for a query."""
-    context = chat_service.get_rag_context(payload.query, payload.symbol)
-    return {"status": "ok", "query": payload.query, "context": context}
+    query = validate_query(payload.query)
+    symbol = validate_symbol(payload.symbol) if payload.symbol else ""
+    context = chat_service.get_rag_context(query, symbol)
+    return {"status": "ok", "query": query, "context": context}
