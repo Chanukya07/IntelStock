@@ -1,10 +1,7 @@
 """AI Chat page."""
 import streamlit as st
-import time
-import requests
 
 from backend.services.chat_service import ChatService
-
 from frontend.sidebar import inject_styles, render_sidebar
 
 st.set_page_config(page_title="AI Chat — IntelStock", layout="wide")
