@@ -12,6 +12,23 @@ from backend.rag.retriever import RAGRetriever
 
 logger = logging.getLogger(__name__)
 
+_alert_service = None
+
+
+def _get_alert_service():
+    """Lazily import the alert_service singleton owned by advanced_routes.
+
+    Deferred to avoid a hard import-order dependency at module load time —
+    the same AlertService instance backing the /api/v1/alerts endpoints
+    must be reused here so alerts created via the API are actually checked.
+    """
+    global _alert_service
+    if _alert_service is None:
+        from backend.api.advanced_routes import alert_service
+
+        _alert_service = alert_service
+    return _alert_service
+
 TRACKED_SYMBOLS = ("RELIANCE", "TCS", "INFY", "WIPRO", "HDFC", "HDFCBANK", "NIFTY")
 REFRESH_INTERVAL_SECONDS = 900  # 15 minutes
 
@@ -49,6 +66,29 @@ async def warm_up_sentiment_cache() -> None:
     logger.info("Sentiment cache warm-up completed")
 
 
+async def check_price_alerts() -> None:
+    """Evaluate active price alerts against live quotes and mark hits."""
+    logger.info("Starting price alert check at %s", datetime.now().isoformat())
+    alert_service = _get_alert_service()
+    market_data = MarketDataService()
+
+    for symbol in TRACKED_SYMBOLS:
+        try:
+            quote = market_data.fetch_live_quote(symbol)
+            triggered = alert_service.check_alerts(
+                symbol=quote["symbol"],
+                current_price=quote["price"],
+                change_pct=quote["change_pct"],
+                volume=quote["volume"],
+            )
+            for alert in triggered:
+                logger.info("Alert %s triggered for %s", alert.id, symbol)
+        except Exception as e:
+            logger.warning("Failed to check alerts for %s: %s", symbol, e)
+
+    logger.info("Price alert check completed")
+
+
 async def refresh_rag_index() -> None:
     """Refresh RAG vector store with latest news and research."""
     logger.info("Starting RAG index refresh at %s", datetime.now().isoformat())
@@ -72,6 +112,7 @@ async def run_background_tasks() -> None:
                 refresh_market_data(),
                 warm_up_sentiment_cache(),
                 refresh_rag_index(),
+                check_price_alerts(),
             )
         except Exception as e:
             logger.error("Background task error: %s", e)

@@ -1,7 +1,6 @@
 """Unit tests for IntelStock backend services."""
 
 
-
 def test_market_data_service_fetch_quote():
     from backend.services.market_data_service import MarketDataService
 
@@ -71,6 +70,54 @@ def test_alert_service_delete_nonexistent():
     svc = AlertService()
     success = svc.delete_alert(99999)
     assert success is False
+
+
+def test_alert_service_check_alerts_triggers_price_above():
+    from backend.services.alert_service import AlertService, AlertType
+
+    svc = AlertService()
+    alert = svc.create_alert(user_id=3, symbol="RELIANCE", alert_type=AlertType.PRICE_ABOVE, threshold=3000.0)
+
+    triggered = svc.check_alerts(symbol="RELIANCE", current_price=3245.50, change_pct=2.4, volume="4.2M")
+
+    assert len(triggered) == 1
+    assert triggered[0].id == alert.id
+    # Triggering should flip is_active and stamp triggered_at
+    assert alert.is_active is False
+    assert alert.triggered_at is not None
+
+
+def test_alert_service_check_alerts_does_not_trigger_below_threshold():
+    from backend.services.alert_service import AlertService, AlertType
+
+    svc = AlertService()
+    svc.create_alert(user_id=4, symbol="TCS", alert_type=AlertType.PRICE_ABOVE, threshold=5000.0)
+
+    triggered = svc.check_alerts(symbol="TCS", current_price=4385.75, change_pct=1.8, volume="1.8M")
+
+    assert triggered == []
+
+
+def test_alert_service_check_alerts_skips_already_triggered():
+    from backend.services.alert_service import AlertService, AlertType
+
+    svc = AlertService()
+    svc.create_alert(user_id=5, symbol="INFY", alert_type=AlertType.PRICE_ABOVE, threshold=2000.0)
+
+    first = svc.check_alerts(symbol="INFY", current_price=2156.40, change_pct=3.1, volume="3.3M")
+    second = svc.check_alerts(symbol="INFY", current_price=2200.00, change_pct=3.1, volume="3.3M")
+
+    assert len(first) == 1
+    assert second == []
+
+
+def test_scheduler_alert_service_is_shared_singleton():
+    """The scheduler must check the same AlertService instance the API writes to,
+    otherwise alerts created via /api/v1/alerts are never evaluated."""
+    from backend.tasks.scheduler import _get_alert_service
+    from backend.api.advanced_routes import alert_service as routes_alert_service
+
+    assert _get_alert_service() is routes_alert_service
 
 
 def test_portfolio_analytics_service_metrics():

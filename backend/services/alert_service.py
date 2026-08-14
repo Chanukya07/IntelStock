@@ -108,6 +108,7 @@ class AlertService:
 
             if should_trigger:
                 alert.triggered_at = self._get_current_time()
+                alert.is_active = False
                 triggered.append(alert)
 
         return triggered
