@@ -27,6 +27,7 @@ class PriceAlert:
     is_active: bool
     created_at: str
     triggered_at: str | None = None
+    triggered_price: float | None = None
 
 
 class AlertService:
@@ -108,6 +109,7 @@ class AlertService:
 
             if should_trigger:
                 alert.triggered_at = self._get_current_time()
+                alert.triggered_price = current_price
                 alert.is_active = False
                 triggered.append(alert)
 

@@ -82,9 +82,10 @@ def test_alert_service_check_alerts_triggers_price_above():
 
     assert len(triggered) == 1
     assert triggered[0].id == alert.id
-    # Triggering should flip is_active and stamp triggered_at
+    # Triggering should flip is_active and stamp triggered_at/triggered_price
     assert alert.is_active is False
     assert alert.triggered_at is not None
+    assert alert.triggered_price == 3245.50
 
 
 def test_alert_service_check_alerts_does_not_trigger_below_threshold():

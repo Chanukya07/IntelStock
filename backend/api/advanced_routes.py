@@ -81,6 +81,7 @@ def get_alerts(user_id: int) -> dict[str, object]:
                 "threshold": a.threshold,
                 "is_active": a.is_active,
                 "triggered_at": a.triggered_at,
+                "triggered_price": a.triggered_price,
             }
             for a in alerts
         ],

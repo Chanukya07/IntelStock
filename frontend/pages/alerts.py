@@ -41,9 +41,9 @@ def fetch_alerts(user_id: int) -> list:
 
 def _mock_alerts() -> list:
     return [
-        {"id": 1, "symbol": "RELIANCE", "alert_type": "price_above", "threshold": 3300, "is_active": True, "triggered_at": None},
-        {"id": 2, "symbol": "TCS", "alert_type": "price_below", "threshold": 4200, "is_active": True, "triggered_at": None},
-        {"id": 3, "symbol": "INFY", "alert_type": "change_percent", "threshold": 5.0, "is_active": False, "triggered_at": "2026-08-14 14:30"},
+        {"id": 1, "symbol": "RELIANCE", "alert_type": "price_above", "threshold": 3300, "is_active": True, "triggered_at": None, "triggered_price": None},
+        {"id": 2, "symbol": "TCS", "alert_type": "price_below", "threshold": 4200, "is_active": True, "triggered_at": None, "triggered_price": None},
+        {"id": 3, "symbol": "INFY", "alert_type": "change_percent", "threshold": 5.0, "is_active": False, "triggered_at": "2026-08-14 14:30", "triggered_price": 2156.40},
     ]
 
 
@@ -200,64 +200,36 @@ with tab2:
 
 with tab3:
     st.markdown("<h3 style='color:#e2e8f0;'>Alert History</h3>", unsafe_allow_html=True)
+    st.markdown("<div style='color:#64748b;font-size:0.8rem;margin-bottom:16px;'>Alerts are checked against live prices every 15 minutes by the background scheduler.</div>", unsafe_allow_html=True)
 
-    # Alert history (shows triggered alerts + mock history)
-    history = [
-        {
-            "date": "2026-08-14 14:30",
-            "symbol": "INFY",
-            "type": "change_percent",
-            "threshold": 5.0,
-            "triggered": True,
-            "price": 2156.40,
-        },
-        {
-            "date": "2026-08-14 10:15",
-            "symbol": "RELIANCE",
-            "type": "price_above",
-            "threshold": 3200,
-            "triggered": True,
-            "price": 3245.50,
-        },
-        {
-            "date": "2026-08-13 16:45",
-            "symbol": "TCS",
-            "type": "price_below",
-            "threshold": 4400,
-            "triggered": False,
-            "price": 4385.75,
-        },
-        {
-            "date": "2026-08-13 09:30",
-            "symbol": "HDFCBANK",
-            "type": "price_above",
-            "threshold": 1950,
-            "triggered": False,
-            "price": 1945.30,
-        },
-    ]
+    all_alerts = fetch_alerts(USER_ID)
+    history = sorted(
+        (a for a in all_alerts if a.get("triggered_at")),
+        key=lambda a: a["triggered_at"],
+        reverse=True,
+    )
 
-    for event in history:
-        triggered_badge = (
-            "<span style='background:#34d399;color:#080c12;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;'>Triggered</span>"
-            if event["triggered"]
-            else "<span style='background:#64748b;color:#fff;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;'>Pending</span>"
-        )
-        st.markdown(
-            f"""
-            <div style='padding:12px;border:1px solid rgba(255,255,255,0.05);border-radius:8px;margin-bottom:8px;background:#0d1117;'>
-                <div style='display:flex;justify-content:space-between;margin-bottom:6px;'>
-                    <span style='font-weight:600;color:#e2e8f0;'>{event['symbol']}</span>
-                    <span style='font-size:0.8rem;color:#64748b;'>{event['date']}</span>
-                </div>
-                <div style='display:flex;justify-content:space-between;align-items:center;'>
-                    <span style='color:#cbd5e1;font-size:0.9rem;'>{ALERT_TYPES.get(event['type'], 'Unknown')} @ {event['threshold']}</span>
-                    <div style='display:flex;align-items:center;gap:12px;'>
-                        <span style='color:#cbd5e1;font-family:"JetBrains Mono",monospace;'>₹{event['price']:,.2f}</span>
-                        {triggered_badge}
+    if not history:
+        st.info("No alerts have triggered yet. Once a threshold is crossed, it will show up here.")
+    else:
+        for event in history:
+            price = event.get("triggered_price")
+            price_html = f"₹{price:,.2f}" if price is not None else "—"
+            st.markdown(
+                f"""
+                <div style='padding:12px;border:1px solid rgba(255,255,255,0.05);border-radius:8px;margin-bottom:8px;background:#0d1117;'>
+                    <div style='display:flex;justify-content:space-between;margin-bottom:6px;'>
+                        <span style='font-weight:600;color:#e2e8f0;'>{event['symbol']}</span>
+                        <span style='font-size:0.8rem;color:#64748b;'>{event['triggered_at']}</span>
+                    </div>
+                    <div style='display:flex;justify-content:space-between;align-items:center;'>
+                        <span style='color:#cbd5e1;font-size:0.9rem;'>{ALERT_TYPES.get(event['alert_type'], 'Unknown')} @ {event['threshold']}</span>
+                        <div style='display:flex;align-items:center;gap:12px;'>
+                            <span style='color:#cbd5e1;font-family:"JetBrains Mono",monospace;'>{price_html}</span>
+                            <span style='background:#34d399;color:#080c12;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;'>Triggered</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+                """,
+                unsafe_allow_html=True,
+            )
