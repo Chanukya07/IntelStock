@@ -1,30 +1,32 @@
 """AI Chat page."""
+import os
+import sys
 import streamlit as st
-import time
-import requests
-import os, sys
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
 from backend.services.chat_service import ChatService
 from frontend.sidebar import inject_styles, render_sidebar
+from frontend.animations import inject_animations, animated_header
 
 st.set_page_config(page_title="AI Chat — IntelStock", layout="wide")
-inject_styles()
 
-st.markdown(
-    """<style>.stButton>button{background:rgba(0,212,170,0.1)!important;border:1px solid rgba(0,212,170,0.25)!important;color:#00d4aa!important;border-radius:8px!important;font-size:0.8rem!important;}
-.stTextInput input{background:#0d1117!important;border:1px solid rgba(255,255,255,0.1)!important;color:#e2e8f0!important;border-radius:10px!important;}
-.stTextInput input:focus{border-color:rgba(0,212,170,0.5)!important;}
+inject_styles()
+inject_animations()
+
+st.markdown("""
+<style>
 .user-msg{background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);border-radius:12px 12px 4px 12px;padding:12px 16px;margin-left:60px;color:#e2e8f0;font-size:0.875rem;line-height:1.6;}
 .ai-msg{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px 12px 12px 4px;padding:12px 16px;margin-right:60px;color:#e2e8f0;font-size:0.875rem;line-height:1.6;}
-.msg-meta{font-size:0.65rem;color:#64748b;margin-top:4px;}</style>"""
-    , unsafe_allow_html=True
-)
+.msg-meta{font-size:0.65rem;color:#64748b;margin-top:4px;}
+</style>
+""", unsafe_allow_html=True)
 
 render_sidebar()
+
 chat_service = ChatService()
 
-st.markdown("<h1 style='color:#e2e8f0;font-size:1.6rem;font-weight:700;margin-bottom:4px;'>AI Stock Assistant</h1>", unsafe_allow_html=True)
-st.markdown("<div style='color:#64748b;font-size:0.8rem;margin-bottom:20px;'>Ask about any NSE/BSE stock, sector, or market condition</div>", unsafe_allow_html=True)
+animated_header("AI Stock Assistant", "Ask about any NSE/BSE stock, sector, or market condition")
 
 # Quick prompts
 st.markdown("<div style='margin-bottom:12px;'>", unsafe_allow_html=True)
@@ -50,27 +52,89 @@ def infer_symbol(msg: str) -> str:
         return "NIFTY"
     return "RELIANCE"
 
-def build_ai_response(msg: str) -> dict[str, object]:
+
+def build_ai_response_streaming(msg: str):
     symbol = infer_symbol(msg)
-    response = chat_service.chat(msg)
-    return {"symbol": symbol, "response": response, "content": response.get("message", "")}
+
+    # Cheap, non-LLM metadata for the summary card — the streamed answer
+    # itself is the only LLM round-trip, so this must not call the model.
+    quote = chat_service.market_data_service.fetch_live_quote(symbol)
+    sentiment_label = quote.get("sentiment", "Neutral")
+    confidence = round(min(0.95, 0.5 + abs(float(quote.get("change_pct", 0))) / 20), 2)
+    recommendation = f"{sentiment_label} bias — monitor {symbol}"
+
+    response_data = {
+        "symbol": symbol,
+        "message": "",
+        "confidence": confidence,
+        "recommendation": recommendation,
+    }
+    accumulated_response = ""
+
+    for chunk in chat_service.chat_stream(msg):
+        if chunk:
+            accumulated_response += chunk
+            response_data["message"] = accumulated_response
+            yield response_data
 
 # Display messages
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+for msg in st.session_state.messages:
+    if msg['role'] == 'user':
+        st.markdown(f"<div style='display:flex;justify-content:flex-end;margin-bottom:12px;'><div class='user-msg'>{msg['content']}</div></div>", unsafe_allow_html=True)
+        st.markdown("<div class='msg-meta' style='text-align:right;'>You</div>", unsafe_allow_html=True)
+    else:
+        st.markdown(f"<div style='display:flex;margin-bottom:12px;gap:10px;'><div style='width:28px;height:28px;border-radius:50%;background:rgba(0,212,170,0.12);display:grid;place-items:center;font-size:0.6rem;font-weight:700;color:#00d4aa;flex-shrink:0;'>AI</div><div class='ai-msg'>{msg['content']}</div></div>", unsafe_allow_html=True)
+        response = msg.get('response')
+        if response:
+            st.markdown(
+                f"""
+                <div style='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:-4px 0 16px 38px;'>
+                  <div class='intel-card' style='margin:0;padding:14px 16px;'><div style='font-size:0.7rem;color:#64748b;'>Confidence</div><div style='font-size:1.2rem;font-weight:700;color:#e2e8f0;'>{response['confidence']}</div></div>
+                  <div class='intel-card' style='margin:0;padding:14px 16px;'><div style='font-size:0.7rem;color:#64748b;'>Symbol</div><div style='font-size:1.2rem;font-weight:700;color:#e2e8f0;'>{response['symbol']}</div></div>
+                  <div class='intel-card' style='margin:0;padding:14px 16px;'><div style='font-size:0.7rem;color:#64748b;'>Action</div><div style='font-size:1.0rem;font-weight:700;color:#e2e8f0;'>{response['recommendation']}</div></div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
 # Chat input
-if prompt := st.chat_input("Ask about stock analysis..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+st.markdown("<br>", unsafe_allow_html=True)
+with st.form("chat_form", clear_on_submit=True):
+    col_inp, col_send = st.columns([8, 1])
+    with col_inp:
+        user_input = st.text_input("", placeholder="Ask about any stock, sector or market condition...", label_visibility="collapsed")
+    with col_send:
+        submitted = st.form_submit_button("Send ➤", width="stretch")
 
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        with st.spinner("Analyzing..."):
-            result = build_ai_response(prompt)
-            full_response = result["content"]
-            message_placeholder.markdown(full_response)
-    
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+if submitted and user_input.strip():
+    st.session_state.messages.append({"role": "user", "content": user_input})
+
+    response_msg = {"role": "assistant", "content": "", "response": {}}
+    st.session_state.messages.append(response_msg)
+    msg_idx = len(st.session_state.messages) - 1
+
+    placeholder = st.empty()
+
+    for streaming_response in build_ai_response_streaming(user_input):
+        response_msg["content"] = streaming_response["message"]
+        response_msg["response"] = {
+            "symbol": streaming_response["symbol"],
+            "confidence": streaming_response["confidence"],
+            "recommendation": streaming_response["recommendation"],
+        }
+        st.session_state.messages[msg_idx] = response_msg
+
+        with placeholder.container():
+            st.markdown(f"<div style='display:flex;margin-bottom:12px;gap:10px;'><div style='width:28px;height:28px;border-radius:50%;background:rgba(0,212,170,0.12);display:grid;place-items:center;font-size:0.6rem;font-weight:700;color:#00d4aa;flex-shrink:0;'>AI</div><div class='ai-msg'>{streaming_response['message']}</div></div>", unsafe_allow_html=True)
+
+    st.rerun()
+
+# Welcome state
+if not st.session_state.messages:
+    st.markdown("""
+    <div style='text-align:center;padding:48px 20px;'>
+      <div style='font-size:2.5rem;margin-bottom:12px;'>🤖</div>
+      <div style='font-size:1rem;font-weight:600;color:#64748b;'>Ask me anything about Indian markets</div>
+      <div style='font-size:0.8rem;color:#334155;margin-top:8px;'>Try: "Analyze RELIANCE" · "Nifty outlook" · "Top IT stocks"</div>
+    </div>
+    """, unsafe_allow_html=True)

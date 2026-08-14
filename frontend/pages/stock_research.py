@@ -1,28 +1,24 @@
 """Stock Research page."""
+import os
+import sys
 import streamlit as st
-import plotly.graph_objects as go
-import os, sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import numpy as np
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from backend.services.insight_service import InsightService
 from backend.services.market_data_service import MarketDataService
 from frontend.sidebar import inject_styles, render_sidebar
+from frontend.charts.price_chart import build_price_chart
+from frontend.animations import inject_animations, animated_header, stat_badges
 
 st.set_page_config(page_title="Stock Research — IntelStock", layout="wide")
 
 inject_styles()
+inject_animations()
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap');
-html,body,[class*="css"]{font-family:'Inter',sans-serif!important;}
-[data-testid="metric-container"]{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px;}
-[data-testid="stMetricValue"]{font-family:'JetBrains Mono',monospace!important;font-size:1.4rem!important;font-weight:700!important;color:#e2e8f0!important;}
-.intel-card{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px 24px;margin-bottom:16px;}
-.stTextInput input{background:#0d1117!important;border:1px solid rgba(255,255,255,0.1)!important;color:#e2e8f0!important;border-radius:8px!important;}
-.stTextInput input:focus{border-color:rgba(0,212,170,0.5)!important;box-shadow:0 0 0 3px rgba(0,212,170,0.12)!important;}
-.stButton>button{background:rgba(0,212,170,0.12)!important;border:1px solid rgba(0,212,170,0.3)!important;color:#00d4aa!important;border-radius:8px!important;font-weight:600!important;}
 .quick-chip{display:inline-block;border:1px solid rgba(255,255,255,0.08);border-radius:999px;padding:6px 12px;margin:0 8px 8px 0;color:#cbd5e1;font-size:0.74rem;}
 </style>
 """, unsafe_allow_html=True)
@@ -32,10 +28,9 @@ render_sidebar()
 market_data_service = MarketDataService()
 insight_service = InsightService()
 
-st.markdown("<h1 style='color:#e2e8f0;font-size:1.6rem;font-weight:700;margin-bottom:4px;'>Stock Research</h1>", unsafe_allow_html=True)
-st.markdown("<div style='color:#64748b;font-size:0.8rem;margin-bottom:16px;'>Enter any NSE symbol for AI-powered analysis</div>", unsafe_allow_html=True)
+animated_header("Stock Research", "Enter any NSE symbol for AI-powered analysis")
 
-st.markdown("<div style='margin-bottom:14px;'><span class='quick-chip'>RELIANCE</span><span class='quick-chip'>TCS</span><span class='quick-chip'>INFY</span><span class='quick-chip'>HDFC</span><span class='quick-chip'>NIFTY</span></div>", unsafe_allow_html=True)
+stat_badges("RELIANCE", "TCS", "INFY", "HDFC", "NIFTY")
 
 col_in, col_btn = st.columns([3, 1])
 with col_in:
@@ -54,57 +49,55 @@ if symbol or search:
 
         st.markdown(
             f"""
-            <div style='display:flex;align-items:center;gap:16px;margin:20px 0 8px;'>
+            <div style='animation:slideInUp 0.6s ease-out;display:flex;align-items:center;gap:16px;margin:20px 0 8px;'>
               <div>
-                <div style='font-size:1.2rem;font-weight:700;color:#e2e8f0;'>{quote['symbol']} <span style='font-size:0.9rem;font-weight:400;color:#64748b;'>· {quote['name']}</span></div>
-                <div style='font-size:2rem;font-weight:700;color:#e2e8f0;font-family:"JetBrains Mono",monospace;'>₹{quote['price']:,} <span style='font-size:1rem;color:{pnl_color};'>{'+' if quote['change_pct'] > 0 else ''}{quote['change_pct']}%</span></div>
+                <div style='font-size:1.2rem;font-weight:700;color:#e2e8f0;animation:slideInLeft 0.5s ease-out;'>{quote['symbol']} <span style='font-size:0.9rem;font-weight:400;color:#64748b;'>· {quote['name']}</span></div>
+                <div style='font-size:2rem;font-weight:700;color:#e2e8f0;font-family:"JetBrains Mono",monospace;animation:slideInLeft 0.7s ease-out;'>₹{quote['price']:,} <span style='font-size:1rem;color:{pnl_color};'>{'+' if quote['change_pct'] > 0 else ''}{quote['change_pct']}%</span></div>
               </div>
-              <div style='margin-left:auto;background:rgba({sent_rgb},0.15);color:{sent_color};padding:6px 16px;border-radius:999px;font-weight:600;font-size:0.8rem;'>{quote['sentiment']} · {report['confidence']}</div>
+              <div style='margin-left:auto;background:rgba({sent_rgb},0.15);color:{sent_color};padding:6px 16px;border-radius:999px;font-weight:600;font-size:0.8rem;animation:scaleIn 0.5s ease-out;'>{quote['sentiment']} · {report['confidence']}</div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
+        st.markdown("<div style='margin:20px 0;'></div>", unsafe_allow_html=True)
         k1, k2, k3, k4, k5 = st.columns(5)
         with k1:
+            st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
             st.metric("Sector", quote["sector"])
+            st.markdown("</div>", unsafe_allow_html=True)
         with k2:
+            st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
             st.metric("Volume", quote["volume"])
+            st.markdown("</div>", unsafe_allow_html=True)
         with k3:
+            st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
             st.metric("Support", f"₹{quote['support']:,}")
+            st.markdown("</div>", unsafe_allow_html=True)
         with k4:
+            st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
             st.metric("Resistance", f"₹{quote['resistance']:,}")
+            st.markdown("</div>", unsafe_allow_html=True)
         with k5:
+            st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
             st.metric("Signal", quote["sentiment"])
+            st.markdown("</div>", unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         col_chart, col_ai = st.columns([3, 2])
 
         with col_chart:
-            st.markdown("<div class='intel-card'><h3 style='color:#e2e8f0;margin-bottom:16px;'>Price Chart — 1 Month</h3>", unsafe_allow_html=True)
+            st.markdown("<div class='intel-card-animated chart-container'><h3 style='color:#e2e8f0;margin-bottom:16px;'>📈 Price Chart — 1 Month</h3>", unsafe_allow_html=True)
             days = list(range(22))
             prices = [quote["price"] * (1 + 0.004 * i + 0.006 * np.sin(i * 0.5)) for i in days]
             prices = [round(p - 80 + 20 * np.random.rand(), 2) for p in prices]
             prices[-1] = quote["price"]
-            fig = go.Figure()
-            fig.add_trace(
-                go.Scatter(
-                    x=days,
-                    y=prices,
-                    mode="lines",
-                    line=dict(color="#00d4aa", width=2),
-                    fill="tozeroy",
-                    fillcolor="rgba(0,212,170,0.06)",
-                )
-            )
-            fig.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                height=240,
-                margin=dict(l=0, r=0, t=8, b=0),
-                xaxis=dict(showgrid=False, color="#64748b", tickfont=dict(size=10)),
-                yaxis=dict(gridcolor="rgba(255,255,255,0.04)", color="#64748b", tickfont=dict(size=10)),
-                showlegend=False,
+            fig = build_price_chart(
+                timestamps=[str(d) for d in days],
+                prices=prices,
+                support=quote.get("support"),
+                resistance=quote.get("resistance"),
+                title=quote["symbol"]
             )
             st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
             st.markdown("</div>", unsafe_allow_html=True)
@@ -112,11 +105,11 @@ if symbol or search:
         with col_ai:
             st.markdown(
                 f"""
-                <div class='intel-card'>
-                  <h3 style='color:#00d4aa;margin-bottom:12px;'>🤖 AI Analysis</h3>
-                  <p style='color:#cbd5e1;font-size:0.85rem;line-height:1.7;'>{report['summary']}</p>
-                  <p style='color:#e2e8f0;font-size:0.82rem;font-weight:600;margin-top:12px;'>Recommendation: {report['recommendation']}</p>
-                  <p style='color:#64748b;font-size:0.75rem;margin-top:8px;'>Catalyst: {report['catalysts'][0]}</p>
+                <div class='intel-card-animated'>
+                  <h3 style='color:#00d4aa;margin-bottom:12px;animation:slideInRight 0.5s ease-out;'>🤖 AI Analysis</h3>
+                  <p style='color:#cbd5e1;font-size:0.85rem;line-height:1.7;animation:fadeIn 0.8s ease-out;'>{report['summary']}</p>
+                  <p style='color:#e2e8f0;font-size:0.82rem;font-weight:600;margin-top:12px;animation:slideInRight 0.6s ease-out;'>Recommendation: <span style='color:#00d4aa;'>{report['recommendation']}</span></p>
+                  <p style='color:#64748b;font-size:0.75rem;margin-top:8px;animation:slideInRight 0.7s ease-out;'>✨ Catalyst: {report['catalysts'][0]}</p>
                 </div>
                 """,
                 unsafe_allow_html=True,

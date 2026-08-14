@@ -35,18 +35,19 @@ class InsightService:
         news_text: str,
         query: str | None = None,
         symbol: str = "",
+        headlines: list[str] | None = None,
     ) -> tuple[str, list[str], list[str]]:
         """Generate AI-powered recommendation using RAG context."""
         rag_context = ""
         if symbol:
-            self.rag_retriever.index_news(news_text.split('\n') if news_text else [], symbol=symbol)
-        retrieved_query = query if query else f"Investment analysis for {quote['name']}"
-        rag_context = self.rag_retriever.retrieve_symbol_context(symbol, retrieved_query, top_k=3)
+            self.rag_retriever.index_news(headlines or [], symbol=symbol)
+            retrieved_query = query if query else f"Investment analysis for {quote['name']}"
+            rag_context = self.rag_retriever.retrieve_symbol_context(symbol, retrieved_query, top_k=3)
         prompt = (
             f"You are an expert stock analyst for Indian markets (NSE/BSE).\n"
             f"Stock: {quote['name']} ({quote['symbol']})\n"
-            f"Price: {quote['price']:,} Change: {quote['change_pct']:+.2f}%\n"
-            f"Support: {quote['support']:,} Resistance: {quote['resistance']:,}\n"
+            f"Price: ₹{quote['price']:,} Change: {quote['change_pct']:+.2f}%\n"
+            f"Support: ₹{quote['support']:,} Resistance: ₹{quote['resistance']:,}\n"
             f"Sentiment: {sentiment['label']} Confidence: {sentiment['confidence']:.2f}\n"
             f"News: {news_text[:300] if news_text else 'No recent news'}\n"
             f"{('Context: ' + rag_context[:500]) if rag_context else ''}\n"
@@ -82,18 +83,21 @@ class InsightService:
     def generate_report(self, symbol: str, query: str | None = None) -> dict[str, object]:
         quote = self.market_data_service.fetch_live_quote(symbol)
         news = self.news_service.fetch_company_news(symbol)
-        news_text = " ".join(news["headlines"]) if isinstance(news.get("headlines"), list) else ""
+        headlines = news["headlines"] if isinstance(news.get("headlines"), list) else []
+        news_text = " ".join(headlines)
         sentiment = self.sentiment_service.score_news(news_text)
         change_pct = float(quote["change_pct"])
         trend_bias = "Bullish" if change_pct > 0.75 else "Bearish" if change_pct < -0.75 else "Neutral"
+
+        # Generate AI-powered insights with RAG context
         recommendation, catalysts, risks = self._generate_ai_recommendation(
-            quote, sentiment, news_text, query, symbol
+            quote, sentiment, news_text, query, symbol, headlines
         )
+
         summary = (
-            f"{quote['name']} is showing {trend_bias.lower()} momentum "
-            f"with price at {quote['price']:,}. "
+            f"{quote['name']} is showing {trend_bias.lower()} momentum with price at ₹{quote['price']:,}. "
             f"Sentiment reads {sentiment['label'].lower()} and the nearest levels sit around "
-            f"{quote['support']:,} / {quote['resistance']:,}."
+            f"₹{quote['support']:,} / ₹{quote['resistance']:,}."
         )
         return {
             "symbol": quote["symbol"],

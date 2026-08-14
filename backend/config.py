@@ -16,7 +16,7 @@ def _get_api_key() -> str:
     return key
 
 OPENROUTER_API_KEY = _get_api_key()
-LLM_MODEL = os.getenv("LLM_MODEL", "meta-llama/llama-2-7b-chat")
+LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-4o-mini")
 OPENROUTER_API_BASE = os.getenv("OPENROUTER_API_BASE", "https://openrouter.ai/api/v1")
 
 

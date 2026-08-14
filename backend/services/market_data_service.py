@@ -1,7 +1,7 @@
 """Market data service for lightweight stock intelligence with live yfinance data."""
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import cast, Any
+from typing import Any
 import yfinance as yf
 import requests
 import time
@@ -22,32 +22,32 @@ class MarketProfile:
 MARKET_PROFILES: dict[str, MarketProfile] = {
     "RELIANCE": MarketProfile(
         symbol="RELIANCE", name="Reliance Industries", sector="Energy",
-        price=2987.0, change_pct=2.4, volume="4.2M", support=2880.0, resistance=3050.0,
+        price=3245.50, change_pct=2.4, volume="4.2M", support=3120.0, resistance=3320.0,
         sentiment="Bullish", headline="Jio and retail momentum continue to support earnings visibility.",
     ),
     "TCS": MarketProfile(
         symbol="TCS", name="Tata Consultancy Services", sector="IT",
-        price=4124.0, change_pct=1.8, volume="1.8M", support=3980.0, resistance=4280.0,
+        price=4385.75, change_pct=1.8, volume="1.8M", support=4230.0, resistance=4490.0,
         sentiment="Bullish", headline="Large deal wins and margin resilience keep the IT thesis intact.",
     ),
     "INFY": MarketProfile(
         symbol="INFY", name="Infosys", sector="IT",
-        price=1925.0, change_pct=3.1, volume="3.3M", support=1860.0, resistance=2006.0,
+        price=2156.40, change_pct=3.1, volume="3.3M", support=2080.0, resistance=2230.0,
         sentiment="Bullish", headline="Guidance upgrades and a breakout in price action support momentum.",
     ),
     "WIPRO": MarketProfile(
         symbol="WIPRO", name="Wipro", sector="IT",
-        price=548.0, change_pct=-0.4, volume="2.7M", support=522.0, resistance=593.0,
+        price=625.80, change_pct=-0.4, volume="2.7M", support=598.0, resistance=655.0,
         sentiment="Neutral", headline="Operating leverage is improving, but deal conversion remains uneven.",
     ),
     "HDFCBANK": MarketProfile(
         symbol="HDFCBANK", name="HDFC Bank", sector="Banking",
-        price=1680.0, change_pct=-0.9, volume="6.1M", support=1648.0, resistance=1795.0,
+        price=1945.30, change_pct=-0.6, volume="6.1M", support=1890.0, resistance=2010.0,
         sentiment="Neutral", headline="Integration progress is steady, while near-term NIM pressure persists.",
     ),
     "NIFTY": MarketProfile(
         symbol="NIFTY", name="Nifty 50", sector="Broad Market",
-        price=24762.0, change_pct=1.24, volume="52.4M", support=24400.0, resistance=25000.0,
+        price=26485.60, change_pct=1.25, volume="52.4M", support=26100.0, resistance=26800.0,
         sentiment="Bullish", headline="Breadth and institutional flows continue to support the index trend.",
     ),
 }
@@ -207,10 +207,10 @@ class MarketDataService:
                 pass
         if not result:
             result = {
-                "NIFTY": {"symbol": "NIFTY", "name": "Nifty 50", "value": 24762, "change": 306, "change_pct": 1.24, "status": "cached"},
-                "SENSEX": {"symbol": "SENSEX", "name": "Sensex", "value": 81467, "change": 702, "change_pct": 0.87, "status": "cached"},
-                "BANKNIFTY": {"symbol": "BANKNIFTY", "name": "Bank Nifty", "value": 52847, "change": 320, "change_pct": 0.63, "status": "cached"},
-                "INDIAVIX": {"symbol": "VIX", "name": "India VIX", "value": 13.42, "change": -0.11, "change_pct": -0.85, "status": "cached"},
+                "NIFTY": {"symbol": "NIFTY", "name": "Nifty 50", "value": 26485.60, "change": 328, "change_pct": 1.25, "status": "cached"},
+                "SENSEX": {"symbol": "SENSEX", "name": "Sensex", "value": 86940, "change": 1050, "change_pct": 1.22, "status": "cached"},
+                "BANKNIFTY": {"symbol": "BANKNIFTY", "name": "Bank Nifty", "value": 57120, "change": 420, "change_pct": 0.74, "status": "cached"},
+                "INDIAVIX": {"symbol": "VIX", "name": "India VIX", "value": 12.8, "change": -0.08, "change_pct": -0.62, "status": "cached"},
             }
         return result
 
