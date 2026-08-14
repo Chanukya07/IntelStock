@@ -10,7 +10,10 @@ from backend.api.routes import router
 from backend.api.advanced_routes import router as advanced_router
 from backend.database import init_db
 from backend.tasks.scheduler import run_background_tasks
+from backend.logging_config import setup_logging
+from backend.middleware import LoggingMiddleware, ErrorHandlingMiddleware
 
+setup_logging()
 logger = logging.getLogger(__name__)
 background_task = None
 
@@ -32,6 +35,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="IntelStock API", version="0.1.0", lifespan=lifespan)
+
+# Add middleware
+app.add_middleware(ErrorHandlingMiddleware)
+app.add_middleware(LoggingMiddleware)
+
+# Include routers
 app.include_router(router)
 app.include_router(advanced_router)
 
