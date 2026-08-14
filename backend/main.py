@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from backend.api.routes import router
+from backend.api.advanced_routes import router as advanced_router
 from backend.database import init_db
 from backend.tasks.scheduler import run_background_tasks
 
@@ -32,6 +33,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="IntelStock API", version="0.1.0", lifespan=lifespan)
 app.include_router(router)
+app.include_router(advanced_router)
 
 
 @app.get("/health")
