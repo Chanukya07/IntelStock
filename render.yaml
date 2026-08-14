@@ -1,0 +1,68 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Single web service running BOTH processes:
+#   - FastAPI  on 127.0.0.1:$BACKEND_PORT  (internal only)
+#   - Streamlit on 0.0.0.0:$PORT           (public)
+#
+# Why one service rather than two: Render's free tier grants 750 instance-hours
+# per month. One service running continuously uses ~720h; two would blow the
+# budget. Both processes are started by ./start.sh.
+
+services:
+  - type: web
+    name: intelstock
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: ./start.sh
+    # Streamlit's own health endpoint — Render polls this to decide if the
+    # service came up. Do NOT point this at the FastAPI /health, which is not
+    # publicly exposed.
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+
+      # Injected automatically from the managed Postgres below.
+      # NOTE: Render emits a postgres:// URL; backend/database/session.py
+      # normalises it to postgresql+psycopg2:// for SQLAlchemy 2.x.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: intelstock-db
+          property: connectionString
+
+      # Set manually in the Render dashboard (sync:false = not stored in git).
+      - key: OPENROUTER_API_KEY
+        sync: false
+
+      # Shared secret for the /api/v1/cron/* endpoints. Render generates it;
+      # copy the value into the GitHub repo secret CRON_SECRET so the
+      # scheduled workflow can authenticate.
+      - key: CRON_SECRET
+        generateValue: true
+
+      - key: LLM_MODEL
+        value: openai/gpt-4o-mini
+
+      # The Streamlit pages call the API over loopback inside this container.
+      - key: INTELSTOCK_API_BASE
+        value: http://127.0.0.1:8000
+
+      - key: BACKEND_PORT
+        value: "8000"
+
+      - key: LOG_LEVEL
+        value: INFO
+
+      # sentence-transformers/torch are intentionally NOT installed in the
+      # deployed image (multi-GB). RAG degrades to no-context retrieval, which
+      # backend/rag/embeddings.py already handles gracefully.
+      - key: RAG_ENABLED
+        value: "true"
+
+databases:
+  - name: intelstock-db
+    plan: free
+    databaseName: intelstock
+    user: intelstock

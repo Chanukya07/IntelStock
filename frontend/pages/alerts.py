@@ -5,6 +5,7 @@ import requests
 
 from frontend.sidebar import inject_styles, render_sidebar
 from frontend.animations import inject_animations, animated_header
+from frontend.api_config import API_BASE, REQUEST_TIMEOUT
 
 st.set_page_config(page_title="Alerts — IntelStock", layout="wide")
 
@@ -18,8 +19,6 @@ animated_header("Price Alerts", "Monitor stocks and get notified on price moveme
 # Mock user ID for MVP
 USER_ID = 1
 
-API_BASE = "http://localhost:8000/api/v1"
-
 ALERT_TYPES = {
     "price_above": "💹 Price Above",
     "price_below": "💹 Price Below",
@@ -32,7 +31,7 @@ ALERT_TYPES = {
 def fetch_alerts(user_id: int) -> list:
     """Fetch active alerts from backend."""
     try:
-        response = requests.get(f"{API_BASE}/alerts", params={"user_id": user_id}, timeout=10)
+        response = requests.get(f"{API_BASE}/alerts", params={"user_id": user_id}, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
         return response.json().get("alerts", [])
     except Exception:
@@ -50,7 +49,7 @@ def _mock_alerts() -> list:
 def delete_alert(alert_id: int) -> bool:
     """Delete an alert via API."""
     try:
-        response = requests.delete(f"{API_BASE}/alerts/{alert_id}", timeout=10)
+        response = requests.delete(f"{API_BASE}/alerts/{alert_id}", timeout=REQUEST_TIMEOUT)
         return response.status_code == 200
     except Exception:
         return False
@@ -63,7 +62,7 @@ def create_alert(user_id: int, symbol: str, alert_type: str, threshold: float) -
             f"{API_BASE}/alerts",
             json={"symbol": symbol, "alert_type": alert_type, "threshold": threshold},
             params={"user_id": user_id},
-            timeout=10,
+            timeout=REQUEST_TIMEOUT,
         )
         return response.status_code == 200
     except Exception:

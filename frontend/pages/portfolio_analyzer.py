@@ -6,6 +6,7 @@ from datetime import datetime
 
 from frontend.animations import inject_animations, animated_header
 from frontend.sidebar import inject_styles, render_sidebar
+from frontend.api_config import API_ROOT, API_BASE, REQUEST_TIMEOUT, REPORT_TIMEOUT
 
 st.set_page_config(page_title="Portfolio — IntelStock", layout="wide")
 
@@ -16,14 +17,13 @@ render_sidebar()
 
 animated_header("Portfolio Analyzer", "Advanced analytics and risk metrics")
 
-API_BASE = "http://localhost:8000/api/v1"
 USER_ID = 1
 
 @st.cache_data(ttl=300)
 def fetch_analytics():
     """Fetch portfolio analytics from backend."""
     try:
-        response = requests.get(f"{API_BASE}/portfolio/analytics", params={"user_id": USER_ID}, timeout=10)
+        response = requests.get(f"{API_BASE}/portfolio/analytics", params={"user_id": USER_ID}, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
         return response.json()
     except Exception as e:
@@ -34,7 +34,7 @@ def fetch_analytics():
 def fetch_portfolio():
     """Fetch portfolio holdings from backend."""
     try:
-        response = requests.get("http://localhost:8000/portfolio", params={"user_id": USER_ID}, timeout=10)
+        response = requests.get(f"{API_ROOT}/portfolio", params={"user_id": USER_ID}, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
         return response.json()
     except Exception as e:
@@ -198,7 +198,7 @@ with report_col1:
     if st.button("📄 Portfolio Report", use_container_width=True):
         with st.spinner("Generating portfolio report..."):
             try:
-                response = requests.get(f"{API_BASE}/reports/portfolio", params={"user_id": USER_ID}, timeout=30)
+                response = requests.get(f"{API_BASE}/reports/portfolio", params={"user_id": USER_ID}, timeout=REPORT_TIMEOUT)
                 response.raise_for_status()
                 st.download_button(
                     label="⬇️ Download HTML Report",
@@ -215,7 +215,7 @@ with report_col2:
     if st.button("📊 Stock Report", use_container_width=True):
         with st.spinner(f"Generating {symbol_for_report} report..."):
             try:
-                response = requests.get(f"{API_BASE}/reports/stock", params={"symbol": symbol_for_report}, timeout=30)
+                response = requests.get(f"{API_BASE}/reports/stock", params={"symbol": symbol_for_report}, timeout=REPORT_TIMEOUT)
                 response.raise_for_status()
                 st.download_button(
                     label="⬇️ Download HTML Report",
@@ -231,7 +231,7 @@ with report_col3:
     if st.button("🧠 Sentiment Report", use_container_width=True):
         with st.spinner("Generating sentiment report..."):
             try:
-                response = requests.get(f"{API_BASE}/reports/sentiment", timeout=30)
+                response = requests.get(f"{API_BASE}/reports/sentiment", timeout=REPORT_TIMEOUT)
                 response.raise_for_status()
                 st.download_button(
                     label="⬇️ Download HTML Report",
