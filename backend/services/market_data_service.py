@@ -4,7 +4,10 @@ from dataclasses import dataclass
 from typing import Any
 import yfinance as yf
 import requests
+import logging
 import time
+
+logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class MarketProfile:
@@ -82,24 +85,43 @@ def _fallback_profile(symbol: str) -> MarketProfile:
         headline="Synthetic market snapshot generated from the available symbol data.",
     )
 
+def _format_volume(history: Any) -> str:
+    """Render the latest Volume bar as the '4.2M' / '512000' / 'N/A' string alerts parse."""
+    vol_val = 0.0
+    if history is not None and not history.empty and "Volume" in history.columns:
+        vol_series = history["Volume"].dropna()
+        if not vol_series.empty:
+            vol_val = float(vol_series.iloc[-1])
+    if vol_val > 1e6:
+        return f"{vol_val / 1e6:.1f}M"
+    return str(int(vol_val)) if vol_val else "N/A"
+
 def _fetch_yfinance_quote(symbol: str) -> dict[str, Any] | None:
     """Fetch real-time quote data from Yahoo Finance for NSE/BSE symbols."""
     ticker_sym = YFINANCE_SUFFIX.get(symbol, f"{symbol}.NS")
     try:
         ticker = yf.Ticker(ticker_sym)
-        info = ticker.fast_info
-        if not info.last_price:
-            history = ticker.history(period="1d")
+        try:
+            info = ticker.fast_info
+            last_price = float(info.last_price) if info.last_price else None
+            prev_close = float(info.previous_close) if info.previous_close else None
+        except Exception:
+            # fast_info is a lazy remote lookup; fall back to the history frame below.
+            last_price = prev_close = None
+        # Always fetch history: it supplies volume even on the fast_info happy path.
+        history = ticker.history(period="1d")
+        if last_price is None or prev_close is None:
             if history.empty:
                 return None
-        last_price = float(info.last_price or history["Close"].iloc[-1])
-        prev_close = float(info.previous_close or history["Open"].iloc[0])
-        change = last_price - prev_close
-        change_pct = round((change / prev_close) * 100, 2) if prev_close else 0.0
-        vol = history.get("Volume", [])
-        volume = f"{float(vol) / 1e6:.1f}M" if vol and float(vol) > 1e6 else f"{int(vol)}" if vol else "N/A"
+            if last_price is None:
+                last_price = float(history["Close"].iloc[-1])
+            if prev_close is None:
+                prev_close = float(history["Open"].iloc[0])
+        change_pct = round(((last_price - prev_close) / prev_close) * 100, 2) if prev_close else 0.0
+        volume = _format_volume(history)
         return {"price": round(last_price, 2), "change_pct": change_pct, "volume": volume, "prev_close": prev_close}
     except Exception:
+        logger.debug("yfinance quote failed for %s", ticker_sym, exc_info=True)
         return None
 
 def _fetch_google_finance_quote(symbol: str) -> dict[str, Any] | None:
@@ -115,7 +137,7 @@ def _fetch_google_finance_quote(symbol: str) -> dict[str, Any] | None:
             if price:
                 return {"price": round(float(price), 2)}
     except Exception:
-        pass
+        logger.debug("chart API quote failed for %s", symbol, exc_info=True)
     return None
 
 def _compute_levels(price: float, change_pct: float) -> tuple[float, float]:
@@ -165,7 +187,7 @@ class MarketDataService:
         else:
             result = {
                 "symbol": profile.symbol, "name": profile.name, "sector": profile.sector,
-                "price": profile.price, "change_fmt": profile.change_fmt if hasattr(profile, "change_fmt") else f"{profile.change_pct:+.2f}",
+                "price": profile.price,
                 "change_pct": profile.change_pct, "volume": profile.volume,
                 "support": profile.support, "resistance": profile.resistance,
                 "sentiment": profile.sentiment, "headline": profile.headline, "status": "cached",
@@ -194,8 +216,10 @@ class MarketDataService:
                 if hist.empty:
                     continue
                 close = float(hist["Close"].iloc[-1])
-                change_pct = float(hist["Close"][-1:] / hist["Open"][-1:] - 1) * 100
-                change = close - float(hist["Open"].iloc[-1])
+                # float() on a one-row Series raises on pandas 3; take the scalar first.
+                open_ = float(hist["Open"].iloc[-1])
+                change_pct = (close / open_ - 1) * 100 if open_ else 0.0
+                change = close - open_
                 result[key] = {
                     "symbol": key, "name": info["name"],
                     "value": round(close, 2), "change": round(change, 2),
@@ -204,7 +228,7 @@ class MarketDataService:
                 }
                 self._cache[key] = (result[key], time.time())
             except Exception:
-                pass
+                logger.debug("index fetch failed for %s", info["symbol"], exc_info=True)
         if not result:
             result = {
                 "NIFTY": {"symbol": "NIFTY", "name": "Nifty 50", "value": 26485.60, "change": 328, "change_pct": 1.25, "status": "cached"},
@@ -216,37 +240,34 @@ class MarketDataService:
 
     def fetch_sector_performance(self) -> list[dict[str, Any]]:
         """Fetch live sector-wise performance."""
+        # Each sector carries its own cached value so a partial network success still
+        # renders all eight bars instead of an all-or-nothing fallback.
         sectors = [
-            {"name": "Nifty IT", "symbol": "^CNXIT"},
-            {"name": "Nifty Bank", "symbol": "^CNXBANK"},
-            {"name": "Nifty Auto", "symbol": "^CNXAUTO"},
-            {"name": "Nifty FMCG", "symbol": "^CNXFMCG"},
-            {"name": "Nifty Pharma", "symbol": "^CNXPHARMA"},
-            {"name": "Nifty Metal", "symbol": "^CNXMETAL"},
-            {"name": "Nifty Realty", "symbol": "^CNXREALTY"},
-            {"name": "Nifty Energy", "symbol": "^CNXENERGY"},
+            {"name": "Nifty IT", "symbol": "^CNXIT", "fallback": 2.4},
+            {"name": "Nifty Bank", "symbol": "^CNXBANK", "fallback": -0.6},
+            {"name": "Nifty Auto", "symbol": "^CNXAUTO", "fallback": 0.5},
+            {"name": "Nifty FMCG", "symbol": "^CNXFMCG", "fallback": -0.3},
+            {"name": "Nifty Pharma", "symbol": "^CNXPHARMA", "fallback": 1.1},
+            {"name": "Nifty Metal", "symbol": "^CNXMETAL", "fallback": -1.8},
+            {"name": "Nifty Realty", "symbol": "^CNXREALTY", "fallback": 0.9},
+            {"name": "Nifty Energy", "symbol": "^CNXENERGY", "fallback": 1.8},
         ]
         results = []
         for sec in sectors:
+            entry = {"name": sec["name"], "change_pct": sec["fallback"], "status": "cached"}
             try:
                 ticker = yf.Ticker(sec["symbol"])
                 hist = ticker.history(period="1d")
                 if not hist.empty:
                     close = float(hist["Close"].iloc[-1])
-                    change_pct = round((close / float(hist["Open"].iloc[-1]) - 1) * 100, 2)
-                    results.append({"name": sec["name"], "change_pct": change_pct, "status": "live"})
-                    continue
+                    open_ = float(hist["Open"].iloc[-1])
+                    if open_:
+                        entry = {
+                            "name": sec["name"],
+                            "change_pct": round((close / open_ - 1) * 100, 2),
+                            "status": "live",
+                        }
             except Exception:
-                pass
-        if not results:
-            results = [
-                {"name": "Nifty IT", "change_pct": 2.4, "status": "cached"},
-                {"name": "Nifty Bank", "change_pct": -0.6, "status": "cached"},
-                {"name": "Nifty Auto", "change_pct": 0.5, "status": "cached"},
-                {"name": "Nifty FMCG", "change_pct": -0.3, "status": "cached"},
-                {"name": "Nifty Pharma", "change_pct": 1.1, "status": "cached"},
-                {"name": "Nifty Metal", "change_pct": -1.8, "status": "cached"},
-                {"name": "Nifty Realty", "change_pct": 0.9, "status": "cached"},
-                {"name": "Nifty Energy", "change_pct": 1.8, "status": "cached"},
-            ]
+                logger.debug("sector fetch failed for %s", sec["symbol"], exc_info=True)
+            results.append(entry)
         return results

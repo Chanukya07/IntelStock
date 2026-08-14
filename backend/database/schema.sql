@@ -77,3 +77,18 @@ CREATE TABLE IF NOT EXISTS portfolios (
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (stock_id) REFERENCES stocks(id)
 );
+
+-- symbol is denormalized (no stock_id FK) because alerts are evaluated
+-- against the plain symbol carried on every live quote.
+CREATE TABLE IF NOT EXISTS alerts (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    symbol TEXT NOT NULL,
+    alert_type TEXT NOT NULL,
+    threshold NUMERIC NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT 1,
+    created_at TEXT,
+    triggered_at TEXT,
+    triggered_price NUMERIC,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);

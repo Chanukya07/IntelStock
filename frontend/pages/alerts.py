@@ -28,28 +28,32 @@ ALERT_TYPES = {
 
 
 @st.cache_data(ttl=60)
-def fetch_alerts(user_id: int) -> list:
-    """Fetch active alerts from backend."""
+def fetch_alerts(user_id: int) -> tuple[list, str | None]:
+    """Fetch alerts, returning (alerts, error).
+
+    Deliberately no mock fallback. Alerts are now persisted rows with real
+    database ids, so inventing placeholder alerts with ids 1/2/3 was actively
+    dangerous: those ids collide with real alerts, and the delete button next
+    to a fabricated row would issue a DELETE for somebody's actual alert.
+    A backend outage must look like an outage, not like three alerts you
+    never created.
+    """
     try:
         response = requests.get(f"{API_BASE}/alerts", params={"user_id": user_id}, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
-        return response.json().get("alerts", [])
-    except Exception:
-        return _mock_alerts()
+        return response.json().get("alerts", []), None
+    except Exception as exc:
+        return [], str(exc)
 
 
-def _mock_alerts() -> list:
-    return [
-        {"id": 1, "symbol": "RELIANCE", "alert_type": "price_above", "threshold": 3300, "is_active": True, "triggered_at": None, "triggered_price": None},
-        {"id": 2, "symbol": "TCS", "alert_type": "price_below", "threshold": 4200, "is_active": True, "triggered_at": None, "triggered_price": None},
-        {"id": 3, "symbol": "INFY", "alert_type": "change_percent", "threshold": 5.0, "is_active": False, "triggered_at": "2026-08-14 14:30", "triggered_price": 2156.40},
-    ]
-
-
-def delete_alert(alert_id: int) -> bool:
-    """Delete an alert via API."""
+def delete_alert(alert_id: int, user_id: int) -> bool:
+    """Delete an alert via API, scoped to its owner."""
     try:
-        response = requests.delete(f"{API_BASE}/alerts/{alert_id}", timeout=REQUEST_TIMEOUT)
+        response = requests.delete(
+            f"{API_BASE}/alerts/{alert_id}",
+            params={"user_id": user_id},
+            timeout=REQUEST_TIMEOUT,
+        )
         return response.status_code == 200
     except Exception:
         return False
@@ -79,9 +83,15 @@ with tab1:
         st.cache_data.clear()
         st.rerun()
 
-    alerts = fetch_alerts(USER_ID)
+    alerts, fetch_error = fetch_alerts(USER_ID)
     active_alerts = [a for a in alerts if a.get("is_active")]
     triggered_alerts = [a for a in alerts if not a.get("is_active")]
+
+    if fetch_error:
+        st.error(
+            f"Could not reach the alerts service, so your alerts can't be shown "
+            f"right now. They are stored server-side and are not lost. ({fetch_error})"
+        )
 
     if alerts:
         # Header row
@@ -120,7 +130,7 @@ with tab1:
                 st.markdown(f"<div style='padding:8px 0;color:#cbd5e1;font-family:\"JetBrains Mono\",monospace;font-size:0.85rem;'>{display_threshold}</div>", unsafe_allow_html=True)
             with col5:
                 if st.button("❌", key=f"delete_{alert['id']}", help="Delete alert"):
-                    if delete_alert(alert["id"]):
+                    if delete_alert(alert["id"], USER_ID):
                         st.success("Alert deleted")
                         st.cache_data.clear()
                         st.rerun()
@@ -139,7 +149,9 @@ with tab1:
     with sc3:
         st.metric("Triggered", len(triggered_alerts))
     with sc4:
-        st.metric("Limit", "50")
+        # Was a hardcoded "Limit 50" — no code enforces any per-user alert cap,
+        # so it advertised a constraint that does not exist. Show something real.
+        st.metric("Symbols Watched", len({a.get("symbol") for a in alerts}))
 
 
 with tab2:
@@ -201,7 +213,9 @@ with tab3:
     st.markdown("<h3 style='color:#e2e8f0;'>Alert History</h3>", unsafe_allow_html=True)
     st.markdown("<div style='color:#64748b;font-size:0.8rem;margin-bottom:16px;'>Alerts are checked against live prices every 15 minutes by the background scheduler.</div>", unsafe_allow_html=True)
 
-    all_alerts = fetch_alerts(USER_ID)
+    all_alerts, history_error = fetch_alerts(USER_ID)
+    if history_error:
+        st.error(f"Could not load alert history: {history_error}")
     history = sorted(
         (a for a in all_alerts if a.get("triggered_at")),
         key=lambda a: a["triggered_at"],

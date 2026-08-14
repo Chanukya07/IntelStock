@@ -2,8 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
+
+from sqlalchemy.orm import Session
+
+from backend.database import Alert, AlertRepository, SessionLocal, UserRepository, init_db
+
+# Tables are created by init_db() on app startup, but AlertService is also used
+# outside the app (scheduler, tests), so the self-opened session path makes sure
+# the schema exists once per process before touching it.
+_schema_ready = False
 
 
 class AlertType(Enum):
@@ -31,13 +43,40 @@ class PriceAlert:
 
 
 class AlertService:
-    """Manage and trigger price alerts."""
+    """Manage and trigger price alerts, persisted in the ``alerts`` table."""
 
-    def __init__(self) -> None:
-        """Initialize alert service."""
-        # In-memory storage for MVP (would be database in production)
-        self.alerts: dict[int, PriceAlert] = {}
-        self.alert_id_counter = 1
+    def __init__(self, db: Session | None = None) -> None:
+        """Initialize alert service.
+
+        Args:
+            db: Optional session used by every call that is not given one.
+                When omitted the service opens (and closes) its own session
+                per call, so a long-lived instance never holds an open one.
+        """
+        self._db = db
+        # The dataclass handed out for a given alert id is reused, so a caller
+        # holding a reference sees a later trigger reflected in place — the
+        # behaviour of the previous in-memory implementation.
+        self._alert_cache: dict[int, PriceAlert] = {}
+
+    @contextmanager
+    def _session(self, db: Session | None) -> Iterator[Session]:
+        """Yield a usable session, opening a short-lived one only if needed."""
+        session = db or self._db
+        if session is not None:
+            yield session
+            return
+
+        global _schema_ready
+        if not _schema_ready:
+            init_db()
+            _schema_ready = True
+
+        session = SessionLocal()
+        try:
+            yield session
+        finally:
+            session.close()
 
     def create_alert(
         self,
@@ -45,6 +84,7 @@ class AlertService:
         symbol: str,
         alert_type: AlertType,
         threshold: float,
+        db: Session | None = None,
     ) -> PriceAlert:
         """Create a new price alert.
 
@@ -53,30 +93,38 @@ class AlertService:
             symbol: Stock symbol
             alert_type: Type of alert (price_above, price_below, etc.)
             threshold: Alert threshold value
+            db: Optional session to use instead of opening one
 
         Returns:
             Created PriceAlert object
         """
-        from datetime import datetime
+        alert_type = AlertType(alert_type)
 
-        alert = PriceAlert(
-            id=self.alert_id_counter,
-            user_id=user_id,
-            symbol=symbol,
-            alert_type=alert_type,
-            threshold=threshold,
-            is_active=True,
-            created_at=datetime.now().isoformat(),
-        )
-        self.alerts[self.alert_id_counter] = alert
-        self.alert_id_counter += 1
-        return alert
+        with self._session(db) as session:
+            # alerts.user_id is a real FK now, and the API addresses users by
+            # raw id, so the row has to exist before the insert.
+            UserRepository(session).ensure_exists(user_id)
+            row = AlertRepository(session).create(
+                user_id=user_id,
+                symbol=symbol,
+                alert_type=alert_type.value,
+                threshold=threshold,
+            )
+            return self._to_dataclass(row)
 
-    def get_user_alerts(self, user_id: int) -> list[PriceAlert]:
+    def get_user_alerts(self, user_id: int, db: Session | None = None) -> list[PriceAlert]:
         """Get all alerts for a user."""
-        return [alert for alert in self.alerts.values() if alert.user_id == user_id]
+        with self._session(db) as session:
+            return [self._to_dataclass(row) for row in AlertRepository(session).get_user_alerts(user_id)]
 
-    def check_alerts(self, symbol: str, current_price: float, change_pct: float, volume: str) -> list[PriceAlert]:
+    def check_alerts(
+        self,
+        symbol: str,
+        current_price: float,
+        change_pct: float,
+        volume: str,
+        db: Session | None = None,
+    ) -> list[PriceAlert]:
         """Check which alerts should be triggered for a symbol.
 
         Args:
@@ -84,54 +132,65 @@ class AlertService:
             current_price: Current stock price
             change_pct: Percentage change
             volume: Trading volume
+            db: Optional session to use instead of opening one
 
         Returns:
             List of triggered alerts
         """
         triggered = []
 
-        for alert in self.alerts.values():
-            if not alert.is_active or alert.symbol != symbol or alert.triggered_at:
-                continue
+        with self._session(db) as session:
+            repo = AlertRepository(session)
+            # Only armed alerts for this symbol — already-triggered rows are
+            # excluded by the query, so an alert never fires twice.
+            for row in repo.get_active(symbol=symbol):
+                alert_type = AlertType(row.alert_type)
+                threshold = float(row.threshold)
+                should_trigger = False
 
-            should_trigger = False
+                if alert_type == AlertType.PRICE_ABOVE:
+                    should_trigger = current_price > threshold
+                elif alert_type == AlertType.PRICE_BELOW:
+                    should_trigger = current_price < threshold
+                elif alert_type == AlertType.CHANGE_PERCENT:
+                    should_trigger = abs(change_pct) >= threshold
+                elif alert_type == AlertType.VOLUME_SPIKE:
+                    # Simple volume check (would need historical data in production)
+                    volume_num = self._parse_volume(volume)
+                    should_trigger = volume_num > threshold
 
-            if alert.alert_type == AlertType.PRICE_ABOVE:
-                should_trigger = current_price > alert.threshold
-            elif alert.alert_type == AlertType.PRICE_BELOW:
-                should_trigger = current_price < alert.threshold
-            elif alert.alert_type == AlertType.CHANGE_PERCENT:
-                should_trigger = abs(change_pct) >= alert.threshold
-            elif alert.alert_type == AlertType.VOLUME_SPIKE:
-                # Simple volume check (would need historical data in production)
-                volume_num = self._parse_volume(volume)
-                should_trigger = volume_num > alert.threshold
-
-            if should_trigger:
-                alert.triggered_at = self._get_current_time()
-                alert.triggered_price = current_price
-                alert.is_active = False
-                triggered.append(alert)
+                if should_trigger:
+                    updated = repo.mark_triggered(row.id, current_price)
+                    triggered.append(self._to_dataclass(updated or row))
 
         return triggered
 
-    def disable_alert(self, alert_id: int) -> bool:
+    def get_active_symbols(self, db: Session | None = None) -> list[str]:
+        """Symbols that still have an armed alert, for the scheduler to poll."""
+        with self._session(db) as session:
+            return AlertRepository(session).get_active_symbols()
+
+    def disable_alert(self, alert_id: int, db: Session | None = None) -> bool:
         """Disable an alert."""
-        if alert_id in self.alerts:
-            self.alerts[alert_id].is_active = False
-            return True
-        return False
+        with self._session(db) as session:
+            updated = AlertRepository(session).set_active(alert_id, False)
+        if updated:
+            cached = self._alert_cache.get(alert_id)
+            if cached is not None:
+                cached.is_active = False
+        return updated
 
-    def delete_alert(self, alert_id: int) -> bool:
-        """Delete an alert."""
-        if alert_id in self.alerts:
-            del self.alerts[alert_id]
-            return True
-        return False
+    def delete_alert(self, alert_id: int, user_id: int | None = None, db: Session | None = None) -> bool:
+        """Delete an alert, optionally scoped to its owner."""
+        with self._session(db) as session:
+            deleted = AlertRepository(session).delete(alert_id, user_id=user_id)
+        if deleted:
+            self._alert_cache.pop(alert_id, None)
+        return deleted
 
-    def get_alert_summary(self, user_id: int) -> dict[str, object]:
+    def get_alert_summary(self, user_id: int, db: Session | None = None) -> dict[str, object]:
         """Get summary of user's alerts."""
-        user_alerts = self.get_user_alerts(user_id)
+        user_alerts = self.get_user_alerts(user_id, db=db)
         active_alerts = [a for a in user_alerts if a.is_active]
         triggered_alerts = [a for a in user_alerts if a.triggered_at]
 
@@ -141,6 +200,41 @@ class AlertService:
             "triggered_alerts": len(triggered_alerts),
             "alerts": user_alerts,
         }
+
+    def _to_dataclass(self, row: Alert) -> PriceAlert:
+        """Map a DB row onto the PriceAlert shape callers already consume."""
+        alert = self._alert_cache.get(row.id)
+        if alert is None:
+            alert = PriceAlert(
+                id=row.id,
+                user_id=row.user_id,
+                symbol=row.symbol,
+                alert_type=AlertType(row.alert_type),
+                threshold=float(row.threshold),
+                is_active=bool(row.is_active),
+                created_at=self._isoformat(row.created_at) or "",
+            )
+            self._alert_cache[row.id] = alert
+        else:
+            alert.user_id = row.user_id
+            alert.symbol = row.symbol
+            alert.alert_type = AlertType(row.alert_type)
+            alert.threshold = float(row.threshold)
+            alert.is_active = bool(row.is_active)
+            alert.created_at = self._isoformat(row.created_at) or ""
+
+        alert.triggered_at = self._isoformat(row.triggered_at)
+        alert.triggered_price = float(row.triggered_price) if row.triggered_price is not None else None
+        return alert
+
+    @staticmethod
+    def _isoformat(value: datetime | str | None) -> str | None:
+        """Render a timestamp column as the ISO string PriceAlert exposes."""
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return str(value)
 
     @staticmethod
     def _parse_volume(volume: str) -> float:
@@ -159,6 +253,4 @@ class AlertService:
     @staticmethod
     def _get_current_time() -> str:
         """Get current ISO timestamp."""
-        from datetime import datetime
-
         return datetime.now().isoformat()

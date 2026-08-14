@@ -1,6 +1,7 @@
 """Database module for IntelStock."""
 
 from backend.database.models import (
+    Alert,
     Base,
     ChatHistory,
     HistoricalPrice,
@@ -13,6 +14,7 @@ from backend.database.models import (
     Watchlist,
 )
 from backend.database.repositories import (
+    AlertRepository,
     ChatRepository,
     HistoricalPriceRepository,
     InsightRepository,
@@ -36,6 +38,7 @@ __all__ = [
     "Insight",
     "ChatHistory",
     "Portfolio",
+    "Alert",
     "SessionLocal",
     "get_db",
     "init_db",
@@ -48,4 +51,5 @@ __all__ = [
     "InsightRepository",
     "ChatRepository",
     "PortfolioRepository",
+    "AlertRepository",
 ]

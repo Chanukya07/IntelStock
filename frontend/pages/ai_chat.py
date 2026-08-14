@@ -28,20 +28,20 @@ chat_service = ChatService()
 
 animated_header("AI Stock Assistant", "Ask about any NSE/BSE stock, sector, or market condition")
 
-# Quick prompts
+# Init chat
+if 'messages' not in st.session_state:
+    st.session_state.messages = []
+
+# Quick prompts — hand the question to the generation block below, which runs
+# later in this same script pass and owns appending it to the transcript.
 st.markdown("<div style='margin-bottom:12px;'>", unsafe_allow_html=True)
 qp_cols = st.columns(4)
 quick_prompts = ["Analyze RELIANCE", "Nifty outlook today", "Top IT stocks to watch", "HDFC near-term view"]
 for i, qp in enumerate(quick_prompts):
     with qp_cols[i]:
         if st.button(qp, width="stretch", key=f"qp_{i}"):
-            st.session_state.setdefault('messages', [])
-            st.session_state.messages.append({"role": "user", "content": qp})
+            st.session_state.pending_prompt = qp
 st.markdown("</div>", unsafe_allow_html=True)
-
-# Init chat
-if 'messages' not in st.session_state:
-    st.session_state.messages = []
 
 def infer_symbol(msg: str) -> str:
     normalized = msg.upper()
@@ -77,6 +77,13 @@ def build_ai_response_streaming(msg: str):
             response_data["message"] = accumulated_response
             yield response_data
 
+    if chat_service.last_response_degraded:
+        # The answer came from the offline briefing, so don't dress it up with a
+        # confidence score and an action tile the model never produced.
+        response_data["confidence"] = "—"
+        response_data["recommendation"] = "Offline mode — data only"
+        yield response_data
+
 # Display messages
 for msg in st.session_state.messages:
     if msg['role'] == 'user':
@@ -106,8 +113,11 @@ with st.form("chat_form", clear_on_submit=True):
     with col_send:
         submitted = st.form_submit_button("Send ➤", width="stretch")
 
-if submitted and user_input.strip():
-    st.session_state.messages.append({"role": "user", "content": user_input})
+# Single generation path shared by the form and the quick-prompt buttons.
+prompt = user_input.strip() if (submitted and user_input.strip()) else st.session_state.pop('pending_prompt', '')
+
+if prompt:
+    st.session_state.messages.append({"role": "user", "content": prompt})
 
     response_msg = {"role": "assistant", "content": "", "response": {}}
     st.session_state.messages.append(response_msg)
@@ -115,7 +125,7 @@ if submitted and user_input.strip():
 
     placeholder = st.empty()
 
-    for streaming_response in build_ai_response_streaming(user_input):
+    for streaming_response in build_ai_response_streaming(prompt):
         response_msg["content"] = streaming_response["message"]
         response_msg["response"] = {
             "symbol": streaming_response["symbol"],

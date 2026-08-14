@@ -11,6 +11,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from backend.database.models import (
+    Alert,
     ChatHistory,
     HistoricalPrice,
     Insight,
@@ -38,6 +39,22 @@ class UserRepository:
 
     def get_by_id(self, user_id: int) -> User | None:
         return self.db.query(User).filter(User.id == user_id).first()
+
+    def ensure_exists(self, user_id: int) -> User:
+        """Ensure a row exists for an id-addressed user.
+
+        The API identifies users by raw integer id, so rows carrying a
+        ``users.id`` foreign key can be written for a user that was never
+        inserted. The id is set explicitly rather than autoincremented so the
+        caller's user_id stays valid.
+        """
+        user = self.get_by_id(user_id)
+        if user is None:
+            user = User(id=user_id, username=f"user{user_id}")
+            self.db.add(user)
+            self.db.commit()
+            self.db.refresh(user)
+        return user
 
 
 class StockRepository:
@@ -220,3 +237,67 @@ class PortfolioRepository:
 
     def get_user_portfolio(self, user_id: int) -> list[Portfolio]:
         return self.db.query(Portfolio).filter(Portfolio.user_id == user_id).all()
+
+
+class AlertRepository:
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create(self, user_id: int, symbol: str, alert_type: str, threshold: float) -> Alert:
+        alert = Alert(user_id=user_id, symbol=symbol, alert_type=alert_type, threshold=threshold, is_active=True)
+        self.db.add(alert)
+        self.db.commit()
+        self.db.refresh(alert)
+        return alert
+
+    def get_by_id(self, alert_id: int) -> Alert | None:
+        return self.db.query(Alert).filter(Alert.id == alert_id).first()
+
+    def get_user_alerts(self, user_id: int) -> list[Alert]:
+        return self.db.query(Alert).filter(Alert.user_id == user_id).order_by(Alert.id).all()
+
+    def get_active(self, symbol: str | None = None) -> list[Alert]:
+        """Alerts that are still armed: active and not yet triggered."""
+        query = self.db.query(Alert).filter(Alert.is_active.is_(True), Alert.triggered_at.is_(None))
+        if symbol is not None:
+            query = query.filter(Alert.symbol == symbol)
+        return query.order_by(Alert.id).all()
+
+    def get_active_symbols(self) -> list[str]:
+        """Distinct symbols that still have an armed alert."""
+        rows = (
+            self.db.query(Alert.symbol)
+            .filter(Alert.is_active.is_(True), Alert.triggered_at.is_(None))
+            .distinct()
+            .all()
+        )
+        return [row[0] for row in rows]
+
+    def mark_triggered(self, alert_id: int, triggered_price: float, triggered_at: datetime | None = None) -> Alert | None:
+        alert = self.get_by_id(alert_id)
+        if alert is None:
+            return None
+        alert.triggered_at = triggered_at or datetime.utcnow()
+        alert.triggered_price = triggered_price
+        alert.is_active = False
+        self.db.commit()
+        self.db.refresh(alert)
+        return alert
+
+    def set_active(self, alert_id: int, is_active: bool) -> bool:
+        alert = self.get_by_id(alert_id)
+        if alert is None:
+            return False
+        alert.is_active = is_active
+        self.db.commit()
+        return True
+
+    def delete(self, alert_id: int, user_id: int | None = None) -> bool:
+        query = self.db.query(Alert).filter(Alert.id == alert_id)
+        if user_id is not None:
+            # Ownership scoping: alert ids are durable now, so an unscoped
+            # delete would let any user remove another user's alert.
+            query = query.filter(Alert.user_id == user_id)
+        result = query.delete()
+        self.db.commit()
+        return result > 0
