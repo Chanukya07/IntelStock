@@ -54,10 +54,16 @@ def infer_symbol(msg: str) -> str:
     return "RELIANCE"
 
 
-def build_ai_response(msg: str) -> dict[str, object]:
+def build_ai_response_streaming(msg: str):
     symbol = infer_symbol(msg)
-    response = chat_service.chat(msg)
-    return {"symbol": symbol, "response": response, "content": response.get("message", "")}
+    response_data = {"symbol": symbol, "message": "", "confidence": "", "recommendation": ""}
+    accumulated_response = ""
+
+    for chunk in chat_service.chat_stream(msg):
+        if chunk:
+            accumulated_response += chunk
+            response_data["message"] = accumulated_response
+            yield response_data
 
 # Display messages
 for msg in st.session_state.messages:
@@ -90,8 +96,20 @@ with st.form("chat_form", clear_on_submit=True):
 
 if submitted and user_input.strip():
     st.session_state.messages.append({"role": "user", "content": user_input})
-    response = build_ai_response(user_input)
-    st.session_state.messages.append({"role": "assistant", "content": response['content'], "response": response['response']})
+
+    response_msg = {"role": "assistant", "content": "", "response": {}}
+    st.session_state.messages.append(response_msg)
+    msg_idx = len(st.session_state.messages) - 1
+
+    placeholder = st.empty()
+
+    for streaming_response in build_ai_response_streaming(user_input):
+        response_msg["content"] = streaming_response["message"]
+        st.session_state.messages[msg_idx] = response_msg
+
+        with placeholder.container():
+            st.markdown(f"<div style='display:flex;margin-bottom:12px;gap:10px;'><div style='width:28px;height:28px;border-radius:50%;background:rgba(0,212,170,0.12);display:grid;place-items:center;font-size:0.6rem;font-weight:700;color:#00d4aa;flex-shrink:0;'>AI</div><div class='ai-msg'>{streaming_response['message']}</div></div>", unsafe_allow_html=True)
+
     st.rerun()
 
 # Welcome state

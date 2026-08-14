@@ -2,6 +2,8 @@
 import streamlit as st
 import plotly.graph_objects as go
 
+from frontend.charts.price_chart import build_sentiment_gauge
+
 st.set_page_config(page_title="Sentiment — IntelStock", layout="wide")
 
 st.markdown("""
@@ -35,6 +37,15 @@ with c1: st.metric("Overall Sentiment","Bullish 🟢","73% positive")
 with c2: st.metric("FII Flow","+₹2,847 Cr","Net buying")
 with c3: st.metric("DII Flow","+₹1,243 Cr","Net buying")
 with c4: st.metric("Put/Call Ratio","0.82","-0.06",delta_color="inverse")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+gauge_col, _ = st.columns([1, 1])
+with gauge_col:
+    st.markdown("<div class='intel-card'>", unsafe_allow_html=True)
+    fig = build_sentiment_gauge(0.73, "Market Sentiment")
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+    st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
