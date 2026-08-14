@@ -1,6 +1,5 @@
 """Overview page — market indices and watchlist."""
 import streamlit as st
-import plotly.graph_objects as go
 import pandas as pd
 
 from frontend.sidebar import inject_styles, render_sidebar
@@ -10,14 +9,6 @@ st.set_page_config(page_title="Overview — IntelStock", layout="wide")
 
 inject_styles()
 inject_animations()
-
-st.markdown("""
-<style>
-[data-testid="metric-container"]{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px;}
-[data-testid="stMetricValue"]{font-family:'JetBrains Mono',monospace!important;font-size:1.5rem!important;font-weight:700!important;color:#e2e8f0!important;}
-.intel-card{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px 24px;margin-bottom:16px;}
-</style>
-""", unsafe_allow_html=True)
 
 render_sidebar()
 

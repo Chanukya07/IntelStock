@@ -12,9 +12,6 @@ inject_animations()
 
 st.markdown("""
 <style>
-.stButton>button{background:rgba(0,212,170,0.1)!important;border:1px solid rgba(0,212,170,0.25)!important;color:#00d4aa!important;border-radius:8px!important;font-size:0.8rem!important;}
-.stTextInput input{background:#0d1117!important;border:1px solid rgba(255,255,255,0.1)!important;color:#e2e8f0!important;border-radius:10px!important;}
-.stTextInput input:focus{border-color:rgba(0,212,170,0.5)!important;}
 .user-msg{background:rgba(0,212,170,0.08);border:1px solid rgba(0,212,170,0.15);border-radius:12px 12px 4px 12px;padding:12px 16px;margin-left:60px;color:#e2e8f0;font-size:0.875rem;line-height:1.6;}
 .ai-msg{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px 12px 12px 4px;padding:12px 16px;margin-right:60px;color:#e2e8f0;font-size:0.875rem;line-height:1.6;}
 .msg-meta{font-size:0.65rem;color:#64748b;margin-top:4px;}

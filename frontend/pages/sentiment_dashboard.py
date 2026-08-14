@@ -1,7 +1,6 @@
 """Sentiment Dashboard page."""
 import streamlit as st
 import plotly.graph_objects as go
-import requests
 
 from frontend.charts.price_chart import build_sentiment_gauge
 from frontend.animations import inject_animations, animated_header

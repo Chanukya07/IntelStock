@@ -6,7 +6,6 @@ import asyncio
 import logging
 from datetime import datetime
 
-from backend.database import get_db
 from backend.services.market_data_service import MarketDataService
 from backend.services.sentiment_service import SentimentService
 from backend.rag.retriever import RAGRetriever
@@ -36,10 +35,13 @@ async def warm_up_sentiment_cache() -> None:
     """Pre-compute sentiment scores for tracked symbols."""
     logger.info("Starting sentiment cache warm-up at %s", datetime.now().isoformat())
     sentiment = SentimentService()
+    market_data = MarketDataService()
 
     for symbol in TRACKED_SYMBOLS:
         try:
-            sentiment.calculate_sentiment(symbol)
+            quote = market_data.fetch_live_quote(symbol)
+            narrative = f"{quote['name']} shows {quote['sentiment'].lower()} momentum with a {quote['change_pct']:+.2f}% move."
+            sentiment.score_news(f"{quote['headline']} {narrative}")
             logger.debug("Warmed up sentiment for %s", symbol)
         except Exception as e:
             logger.warning("Failed to warm up sentiment for %s: %s", symbol, e)

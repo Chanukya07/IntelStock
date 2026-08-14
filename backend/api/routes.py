@@ -16,7 +16,6 @@ from backend.api.validators import (
 from backend.database import (
     get_db,
     ChatRepository,
-    InsightRepository,
     PortfolioRepository,
     StockRepository,
     WatchlistRepository,

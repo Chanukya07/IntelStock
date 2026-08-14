@@ -15,6 +15,21 @@ header{background:transparent!important;}
 section[data-testid="stSidebarNav"], nav[data-testid="stSidebarNav"] {display:none !important;}
 [data-testid="stSidebar"]{background:#0d1117!important;border-right:1px solid rgba(255,255,255,0.07)!important;}
 [data-testid="stSidebar"] *{color:#e2e8f0!important;}
+[data-testid="collapsedControl"] {background-color:#0d1117!important;border-right:1px solid rgba(255,255,255,0.07)!important;}
+[data-testid="collapsedControl"] button, [data-testid="collapsedControl"] svg {color:#64748b!important;stroke:#64748b!important;}
+[data-testid="collapsedControl"]:hover button, [data-testid="collapsedControl"]:hover svg {color:#00d4aa!important;stroke:#00d4aa!important;}
+[data-testid="stSidebar"] [data-testid="stPageLink"] a {
+  display:flex!important;align-items:center!important;gap:10px!important;
+  padding:9px 16px!important;border-radius:8px!important;margin:2px 8px!important;
+  font-size:0.85rem!important;font-weight:500!important;color:#94a3b8!important;
+  text-decoration:none!important;transition:all 180ms ease!important;
+  background:transparent!important;
+}
+[data-testid="stSidebar"] [data-testid="stPageLink"] a:hover {background:rgba(255,255,255,0.05)!important;color:#e2e8f0!important;}
+[data-testid="stSidebar"] [data-testid="stPageLink"] a[aria-current="page"] {
+  background:rgba(0,212,170,0.1)!important;color:#00d4aa!important;
+  border:1px solid rgba(0,212,170,0.2)!important;
+}
 [data-testid="metric-container"]{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px;}
 [data-testid="stMetricValue"]{font-family:'JetBrains Mono',monospace!important;font-size:1.4rem!important;font-weight:700!important;color:#e2e8f0!important;}
 [data-testid="stMetricLabel"]{color:#64748b!important;font-size:0.75rem!important;}
@@ -25,6 +40,7 @@ section[data-testid="stSidebarNav"], nav[data-testid="stSidebarNav"] {display:no
 .stTabs [data-baseweb="tab"]{background:transparent!important;color:#64748b!important;border-bottom:2px solid transparent!important;}
 .stTabs [aria-selected="true"]{color:#00d4aa!important;border-bottom-color:#00d4aa!important;}
 .stTextInput>div>div>input,.stSelectbox>div>div{background:#0d1117!important;border:1px solid rgba(255,255,255,0.1)!important;color:#e2e8f0!important;border-radius:8px!important;}
+.stTextInput>div>div>input:focus{border-color:rgba(0,212,170,0.5)!important;box-shadow:0 0 0 3px rgba(0,212,170,0.12)!important;}
 .stDataFrame{border-radius:12px!important;overflow:hidden!important;}
 /* Mobile optimizations */
 @media (max-width: 768px) {

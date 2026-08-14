@@ -1,6 +1,5 @@
 """Unit tests for IntelStock backend services."""
 
-from unittest.mock import MagicMock, patch
 
 
 def test_market_data_service_fetch_quote():

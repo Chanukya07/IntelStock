@@ -2,7 +2,6 @@
 
 import streamlit as st
 import requests
-from datetime import datetime
 
 from frontend.sidebar import inject_styles, render_sidebar
 from frontend.animations import inject_animations, animated_header
@@ -123,7 +122,7 @@ with tab1:
             with col5:
                 if st.button("❌", key=f"delete_{alert['id']}", help="Delete alert"):
                     if delete_alert(alert["id"]):
-                        st.success(f"Alert deleted")
+                        st.success("Alert deleted")
                         st.cache_data.clear()
                         st.rerun()
                     else:
@@ -195,7 +194,7 @@ with tab2:
                 st.balloons()
                 st.cache_data.clear()
             else:
-                st.warning(f"Alert saved locally. Backend connection issue — alert will be active once connected.")
+                st.warning("Alert saved locally. Backend connection issue — alert will be active once connected.")
                 st.balloons()
 
 

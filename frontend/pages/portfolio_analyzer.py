@@ -34,7 +34,7 @@ def fetch_analytics():
 def fetch_portfolio():
     """Fetch portfolio holdings from backend."""
     try:
-        response = requests.get(f"http://localhost:8000/portfolio", params={"user_id": USER_ID}, timeout=10)
+        response = requests.get("http://localhost:8000/portfolio", params={"user_id": USER_ID}, timeout=10)
         response.raise_for_status()
         return response.json()
     except Exception as e:

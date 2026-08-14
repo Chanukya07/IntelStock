@@ -15,14 +15,6 @@ inject_animations()
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap');
-html,body,[class*="css"]{font-family:'Inter',sans-serif!important;}
-[data-testid="metric-container"]{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px;}
-[data-testid="stMetricValue"]{font-family:'JetBrains Mono',monospace!important;font-size:1.4rem!important;font-weight:700!important;color:#e2e8f0!important;}
-.intel-card{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px 24px;margin-bottom:16px;}
-.stTextInput input{background:#0d1117!important;border:1px solid rgba(255,255,255,0.1)!important;color:#e2e8f0!important;border-radius:8px!important;}
-.stTextInput input:focus{border-color:rgba(0,212,170,0.5)!important;box-shadow:0 0 0 3px rgba(0,212,170,0.12)!important;}
-.stButton>button{background:rgba(0,212,170,0.12)!important;border:1px solid rgba(0,212,170,0.3)!important;color:#00d4aa!important;border-radius:8px!important;font-weight:600!important;}
 .quick-chip{display:inline-block;border:1px solid rgba(255,255,255,0.08);border-radius:999px;padding:6px 12px;margin:0 8px 8px 0;color:#cbd5e1;font-size:0.74rem;}
 </style>
 """, unsafe_allow_html=True)

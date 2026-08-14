@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-import io
 
 
 class ReportGenerator:
@@ -302,13 +301,8 @@ class ReportGenerator:
         """
 
     def _html_to_pdf(self, html_content: str) -> bytes:
-        """Convert HTML to PDF bytes.
+        """Serve the report as HTML bytes.
 
-        For now, returns HTML as base64-encoded content that can be displayed.
-        In production, use a library like weasyprint or reportlab.
+        Extensible to real PDF rendering (e.g. weasyprint, reportlab) later.
         """
-        import base64
-
-        html_bytes = html_content.encode("utf-8")
-        # Return as bytes that can be served as download
-        return html_bytes
+        return html_content.encode("utf-8")
