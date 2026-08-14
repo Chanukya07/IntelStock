@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+      - ./vectorstore:/app/vectorstore
+      - ./data:/app/data
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./intelstock.db}
+      - LLM_MODEL=${LLM_MODEL:-openai/gpt-4o-mini}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - RAG_ENABLED=${RAG_ENABLED:-true}
+      - PYTHONPATH=/app
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - PYTHONPATH=/app
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: streamlit run frontend/dashboard.py --server.port 8501 --server.address 0.0.0.0 --server.headless true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
