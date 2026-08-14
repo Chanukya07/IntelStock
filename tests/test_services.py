@@ -1,6 +1,56 @@
 """Unit tests for IntelStock backend services."""
 
 
+def test_scheduler_refresh_rag_index_indexes_real_headlines():
+    """refresh_rag_index() used to call retrieve_symbol_context(symbol, "") —
+    a read with an empty query that the embedding layer short-circuits to
+    an empty result, so nothing was ever indexed. It must now call
+    index_news() with actual headline content for each tracked symbol."""
+    import asyncio
+    from backend.tasks import scheduler
+
+    calls = []
+
+    class SpyRetriever:
+        def index_news(self, headlines, symbol=""):
+            calls.append((symbol, headlines))
+
+    original_retriever = scheduler.RAGRetriever
+    scheduler.RAGRetriever = SpyRetriever
+    try:
+        asyncio.run(scheduler.refresh_rag_index())
+    finally:
+        scheduler.RAGRetriever = original_retriever
+
+    assert len(calls) == len(scheduler.TRACKED_SYMBOLS)
+    for symbol, headlines in calls:
+        assert symbol in scheduler.TRACKED_SYMBOLS
+        assert len(headlines) > 0
+        assert all(isinstance(h, str) and h for h in headlines)
+
+
+def test_insight_service_indexes_distinct_headlines_not_one_blob():
+    """_generate_ai_recommendation used to derive chunks via
+    news_text.split('\\n'), but news_text is space-joined — so it always
+    produced a single oversized chunk instead of one per headline."""
+    from backend.services.insight_service import InsightService
+
+    svc = InsightService()
+    captured = {}
+
+    def spy_index_news(headlines, symbol=""):
+        captured["headlines"] = headlines
+
+    svc.rag_retriever.index_news = spy_index_news
+    svc.rag_retriever.retrieve_symbol_context = lambda *a, **k: ""
+
+    svc.generate_report("RELIANCE")
+
+    assert "headlines" in captured
+    assert len(captured["headlines"]) >= 2
+    assert captured["headlines"] != [" ".join(captured["headlines"])]
+
+
 def test_market_data_service_fetch_quote():
     from backend.services.market_data_service import MarketDataService
 

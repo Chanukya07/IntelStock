@@ -51,7 +51,20 @@ def infer_symbol(msg: str) -> str:
 
 def build_ai_response_streaming(msg: str):
     symbol = infer_symbol(msg)
-    response_data = {"symbol": symbol, "message": "", "confidence": "", "recommendation": ""}
+
+    # Cheap, non-LLM metadata for the summary card — the streamed answer
+    # itself is the only LLM round-trip, so this must not call the model.
+    quote = chat_service.market_data_service.fetch_live_quote(symbol)
+    sentiment_label = quote.get("sentiment", "Neutral")
+    confidence = round(min(0.95, 0.5 + abs(float(quote.get("change_pct", 0))) / 20), 2)
+    recommendation = f"{sentiment_label} bias — monitor {symbol}"
+
+    response_data = {
+        "symbol": symbol,
+        "message": "",
+        "confidence": confidence,
+        "recommendation": recommendation,
+    }
     accumulated_response = ""
 
     for chunk in chat_service.chat_stream(msg):
@@ -100,6 +113,11 @@ if submitted and user_input.strip():
 
     for streaming_response in build_ai_response_streaming(user_input):
         response_msg["content"] = streaming_response["message"]
+        response_msg["response"] = {
+            "symbol": streaming_response["symbol"],
+            "confidence": streaming_response["confidence"],
+            "recommendation": streaming_response["recommendation"],
+        }
         st.session_state.messages[msg_idx] = response_msg
 
         with placeholder.container():

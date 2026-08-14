@@ -27,11 +27,11 @@ class InsightService:
             self._client = OpenAI(api_key=OPENROUTER_API_KEY, base_url=OPENROUTER_API_BASE)
         return self._client
 
-    def _generate_ai_recommendation(self, quote: dict, sentiment: dict, news_text: str, query: str | None = None, symbol: str = "") -> tuple[str, list[str], list[str]]:
+    def _generate_ai_recommendation(self, quote: dict, sentiment: dict, news_text: str, query: str | None = None, symbol: str = "", headlines: list[str] | None = None) -> tuple[str, list[str], list[str]]:
         """Generate AI-powered recommendation using RAG context from retrieved documents."""
         rag_context = ""
         if symbol:
-            self.rag_retriever.index_news(news_text.split('\n') if news_text else [], symbol=symbol)
+            self.rag_retriever.index_news(headlines or [], symbol=symbol)
             retrieved_query = query if query else f"Investment analysis for {quote['name']}"
             rag_context = self.rag_retriever.retrieve_symbol_context(symbol, retrieved_query, top_k=3)
 
@@ -87,14 +87,15 @@ RISKS: [list 2-3 risks separated by |]"""
     def generate_report(self, symbol: str, query: str | None = None) -> dict[str, object]:
         quote = self.market_data_service.fetch_live_quote(symbol)
         news = self.news_service.fetch_company_news(symbol)
-        news_text = " ".join(news["headlines"]) if isinstance(news.get("headlines"), list) else ""
+        headlines = news["headlines"] if isinstance(news.get("headlines"), list) else []
+        news_text = " ".join(headlines)
         sentiment = self.sentiment_service.score_news(news_text)
 
         change_pct = float(quote["change_pct"])
         trend_bias = "Bullish" if change_pct > 0.75 else "Bearish" if change_pct < -0.75 else "Neutral"
 
         # Generate AI-powered insights with RAG context
-        recommendation, catalysts, risks = self._generate_ai_recommendation(quote, sentiment, news_text, query, symbol)
+        recommendation, catalysts, risks = self._generate_ai_recommendation(quote, sentiment, news_text, query, symbol, headlines)
 
         summary = (
             f"{quote['name']} is showing {trend_bias.lower()} momentum with price at ₹{quote['price']:,}. "

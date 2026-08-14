@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 
 from backend.services.market_data_service import MarketDataService
+from backend.services.news_intelligence_service import NewsIntelligenceService
 from backend.services.sentiment_service import SentimentService
 from backend.rag.retriever import RAGRetriever
 
@@ -90,16 +91,26 @@ async def check_price_alerts() -> None:
 
 
 async def refresh_rag_index() -> None:
-    """Refresh RAG vector store with latest news and research."""
+    """Re-index latest news headlines into the RAG vector store.
+
+    Previously called retrieve_symbol_context(symbol, "") — a read-only
+    search with an empty query, which the embedding layer short-circuits
+    to an empty result. That indexed nothing; this now actually writes
+    fresh headlines via index_news() so retrieval has current content.
+    """
     logger.info("Starting RAG index refresh at %s", datetime.now().isoformat())
     rag = RAGRetriever()
+    news_service = NewsIntelligenceService()
 
     for symbol in TRACKED_SYMBOLS:
         try:
-            rag.retrieve_symbol_context(symbol, "", top_k=1)
-            logger.debug("Refreshed RAG context for %s", symbol)
+            news = news_service.fetch_company_news(symbol)
+            headlines = news.get("headlines", [])
+            if headlines:
+                rag.index_news(headlines, symbol=symbol)
+            logger.debug("Refreshed RAG index for %s (%d headlines)", symbol, len(headlines))
         except Exception as e:
-            logger.warning("Failed to refresh RAG context for %s: %s", symbol, e)
+            logger.warning("Failed to refresh RAG index for %s: %s", symbol, e)
 
     logger.info("RAG index refresh completed")
 
