@@ -1,35 +1,18 @@
 """Sentiment Dashboard page."""
 import streamlit as st
 import plotly.graph_objects as go
+import requests
 
 from frontend.charts.price_chart import build_sentiment_gauge
 from frontend.animations import inject_animations, animated_header
+from frontend.sidebar import inject_styles, render_sidebar
 
 st.set_page_config(page_title="Sentiment — IntelStock", layout="wide")
+
+inject_styles()
 inject_animations()
 
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap');
-html,body,[class*="css"]{font-family:'Inter',sans-serif!important;}
-#MainMenu,footer,header{visibility:hidden;}
-.stApp{background:#080c12!important;}
-[data-testid="stSidebar"]{background:#0d1117!important;border-right:1px solid rgba(255,255,255,0.07)!important;}
-[data-testid="stSidebar"] *{color:#e2e8f0!important;}
-[data-testid="metric-container"]{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px;}
-[data-testid="stMetricValue"]{font-family:'JetBrains Mono',monospace!important;font-size:1.4rem!important;font-weight:700!important;color:#e2e8f0!important;}
-.intel-card{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px 24px;margin-bottom:16px;}
-</style>
-""", unsafe_allow_html=True)
-
-with st.sidebar:
-    st.markdown("<div style='padding:8px 0 16px;'><span style='font-size:1.2rem;font-weight:700;color:#e2e8f0;'>Intel<span style='color:#00d4aa;'>Stock</span></span></div>", unsafe_allow_html=True)
-    st.page_link("dashboard.py", label="📊  Dashboard")
-    st.page_link("pages/overview.py", label="🏠  Overview")
-    st.page_link("pages/stock_research.py", label="🔍  Stock Research")
-    st.page_link("pages/sentiment_dashboard.py", label="🧠  Sentiment")
-    st.page_link("pages/portfolio_analyzer.py", label="💼  Portfolio")
-    st.page_link("pages/ai_chat.py", label="💬  AI Chat")
+render_sidebar()
 
 animated_header("Sentiment Dashboard", "AI-powered market sentiment · Updated every 15 min")
 
@@ -109,7 +92,7 @@ tickers = [
     {"sym":"RELIANCE","chg":"+2.4%","sent":"Bullish","mentions":"4,821"},
     {"sym":"TCS",     "chg":"+1.8%","sent":"Bullish","mentions":"2,345"},
     {"sym":"INFY",    "chg":"+3.1%","sent":"Bullish","mentions":"1,987"},
-    {"sym":"HDFC",    "chg":"-0.9%","sent":"Neutral","mentions":"1,543"},
+    {"sym":"HDFCBANK","chg":"-0.6%","sent":"Neutral","mentions":"1,543"},
     {"sym":"TATASTEEL","chg":"-1.8%","sent":"Bearish","mentions":"1,221"},
 ]
 cols = st.columns(5)
