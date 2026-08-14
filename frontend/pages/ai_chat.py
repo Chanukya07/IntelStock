@@ -3,10 +3,12 @@ import streamlit as st
 
 from backend.services.chat_service import ChatService
 from frontend.sidebar import inject_styles, render_sidebar
+from frontend.animations import inject_animations, animated_header
 
 st.set_page_config(page_title="AI Chat — IntelStock", layout="wide")
 
 inject_styles()
+inject_animations()
 
 st.markdown("""
 <style>
@@ -23,8 +25,7 @@ render_sidebar()
 
 chat_service = ChatService()
 
-st.markdown("<h1 style='color:#e2e8f0;font-size:1.6rem;font-weight:700;margin-bottom:4px;'>AI Stock Assistant</h1>", unsafe_allow_html=True)
-st.markdown("<div style='color:#64748b;font-size:0.8rem;margin-bottom:20px;'>Ask about any NSE/BSE stock, sector, or market condition</div>", unsafe_allow_html=True)
+animated_header("AI Stock Assistant", "Ask about any NSE/BSE stock, sector, or market condition")
 
 # Quick prompts
 st.markdown("<div style='margin-bottom:12px;'>", unsafe_allow_html=True)

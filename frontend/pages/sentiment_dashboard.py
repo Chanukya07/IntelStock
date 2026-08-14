@@ -3,8 +3,10 @@ import streamlit as st
 import plotly.graph_objects as go
 
 from frontend.charts.price_chart import build_sentiment_gauge
+from frontend.animations import inject_animations, animated_header
 
 st.set_page_config(page_title="Sentiment — IntelStock", layout="wide")
+inject_animations()
 
 st.markdown("""
 <style>
@@ -29,8 +31,7 @@ with st.sidebar:
     st.page_link("pages/portfolio_analyzer.py", label="💼  Portfolio")
     st.page_link("pages/ai_chat.py", label="💬  AI Chat")
 
-st.markdown("<h1 style='color:#e2e8f0;font-size:1.6rem;font-weight:700;margin-bottom:4px;'>Sentiment Dashboard</h1>", unsafe_allow_html=True)
-st.markdown("<div style='color:#64748b;font-size:0.8rem;margin-bottom:24px;'>AI-powered market sentiment · Updated every 15 min</div>", unsafe_allow_html=True)
+animated_header("Sentiment Dashboard", "AI-powered market sentiment · Updated every 15 min")
 
 c1,c2,c3,c4 = st.columns(4)
 with c1: st.metric("Overall Sentiment","Bullish 🟢","73% positive")

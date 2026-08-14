@@ -4,10 +4,12 @@ import plotly.graph_objects as go
 import pandas as pd
 
 from frontend.sidebar import inject_styles, render_sidebar
+from frontend.animations import inject_animations, animated_header
 
 st.set_page_config(page_title="Overview — IntelStock", layout="wide")
 
 inject_styles()
+inject_animations()
 
 st.markdown("""
 <style>
@@ -19,8 +21,7 @@ st.markdown("""
 
 render_sidebar()
 
-st.markdown("<h1 style='color:#e2e8f0;font-size:1.6rem;font-weight:700;margin-bottom:4px;'>Market Overview</h1>", unsafe_allow_html=True)
-st.markdown("<div style='color:#64748b;font-size:0.8rem;margin-bottom:24px;'>Live indices · NSE/BSE</div>", unsafe_allow_html=True)
+animated_header("Market Overview", "Live indices · NSE/BSE")
 
 # KPIs
 c1,c2,c3,c4 = st.columns(4)

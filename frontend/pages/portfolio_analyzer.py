@@ -2,7 +2,10 @@
 import streamlit as st
 import plotly.graph_objects as go
 
+from frontend.animations import inject_animations, animated_header
+
 st.set_page_config(page_title="Portfolio — IntelStock", layout="wide")
+inject_animations()
 
 st.markdown("""
 <style>
@@ -27,8 +30,7 @@ with st.sidebar:
     st.page_link("pages/portfolio_analyzer.py", label="💼  Portfolio")
     st.page_link("pages/ai_chat.py", label="💬  AI Chat")
 
-st.markdown("<h1 style='color:#e2e8f0;font-size:1.6rem;font-weight:700;margin-bottom:4px;'>Portfolio Analyzer</h1>", unsafe_allow_html=True)
-st.markdown("<div style='color:#64748b;font-size:0.8rem;margin-bottom:24px;'>Total value: ₹16.2L · 8.3% overall returns</div>", unsafe_allow_html=True)
+animated_header("Portfolio Analyzer", "Total value: ₹16.2L · 8.3% overall returns")
 
 c1,c2,c3,c4 = st.columns(4)
 with c1: st.metric("Total Value","₹16.2L","+₹1.24L")
