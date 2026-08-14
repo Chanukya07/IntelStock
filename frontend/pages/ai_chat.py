@@ -1,5 +1,9 @@
 """AI Chat page."""
+import os
+import sys
 import streamlit as st
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from backend.services.chat_service import ChatService
 from frontend.sidebar import inject_styles, render_sidebar

@@ -1,6 +1,10 @@
 """Stock Research page."""
+import os
+import sys
 import streamlit as st
 import numpy as np
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from backend.services.insight_service import InsightService
 from backend.services.market_data_service import MarketDataService
