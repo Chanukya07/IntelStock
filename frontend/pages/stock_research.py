@@ -1,11 +1,11 @@
 """Stock Research page."""
 import streamlit as st
-import plotly.graph_objects as go
 import numpy as np
 
 from backend.services.insight_service import InsightService
 from backend.services.market_data_service import MarketDataService
 from frontend.sidebar import inject_styles, render_sidebar
+from frontend.charts.price_chart import build_price_chart
 
 st.set_page_config(page_title="Stock Research — IntelStock", layout="wide")
 
@@ -84,25 +84,12 @@ if symbol or search:
             prices = [quote["price"] * (1 + 0.004 * i + 0.006 * np.sin(i * 0.5)) for i in days]
             prices = [round(p - 80 + 20 * np.random.rand(), 2) for p in prices]
             prices[-1] = quote["price"]
-            fig = go.Figure()
-            fig.add_trace(
-                go.Scatter(
-                    x=days,
-                    y=prices,
-                    mode="lines",
-                    line=dict(color="#00d4aa", width=2),
-                    fill="tozeroy",
-                    fillcolor="rgba(0,212,170,0.06)",
-                )
-            )
-            fig.update_layout(
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                height=240,
-                margin=dict(l=0, r=0, t=8, b=0),
-                xaxis=dict(showgrid=False, color="#64748b", tickfont=dict(size=10)),
-                yaxis=dict(gridcolor="rgba(255,255,255,0.04)", color="#64748b", tickfont=dict(size=10)),
-                showlegend=False,
+            fig = build_price_chart(
+                timestamps=[str(d) for d in days],
+                prices=prices,
+                support=quote.get("support"),
+                resistance=quote.get("resistance"),
+                title=quote["symbol"]
             )
             st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
             st.markdown("</div>", unsafe_allow_html=True)
