@@ -15,6 +15,25 @@ header{background:transparent!important;}
 section[data-testid="stSidebarNav"], nav[data-testid="stSidebarNav"] {display:none !important;}
 [data-testid="stSidebar"]{background:#0d1117!important;border-right:1px solid rgba(255,255,255,0.07)!important;}
 [data-testid="stSidebar"] *{color:#e2e8f0!important;}
+[data-testid="metric-container"]{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px;}
+[data-testid="stMetricValue"]{font-family:'JetBrains Mono',monospace!important;font-size:1.4rem!important;font-weight:700!important;color:#e2e8f0!important;}
+[data-testid="stMetricLabel"]{color:#64748b!important;font-size:0.75rem!important;}
+[data-testid="stMetricDelta"]{font-size:0.75rem!important;}
+.intel-card{background:#0d1117;border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:20px 24px;margin-bottom:16px;}
+.stButton>button{background:rgba(0,212,170,0.1)!important;border:1px solid rgba(0,212,170,0.3)!important;color:#00d4aa!important;border-radius:8px!important;font-weight:600!important;transition:all 0.2s ease!important;}
+.stButton>button:hover{background:rgba(0,212,170,0.2)!important;border-color:#00d4aa!important;}
+.stTabs [data-baseweb="tab"]{background:transparent!important;color:#64748b!important;border-bottom:2px solid transparent!important;}
+.stTabs [aria-selected="true"]{color:#00d4aa!important;border-bottom-color:#00d4aa!important;}
+.stTextInput>div>div>input,.stSelectbox>div>div{background:#0d1117!important;border:1px solid rgba(255,255,255,0.1)!important;color:#e2e8f0!important;border-radius:8px!important;}
+.stDataFrame{border-radius:12px!important;overflow:hidden!important;}
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  [data-testid="stSidebar"]{width:100%!important;min-width:100%!important;}
+  .element-container{padding:0 4px!important;}
+  [data-testid="metric-container"]{padding:12px!important;}
+  [data-testid="stMetricValue"]{font-size:1.1rem!important;}
+  .intel-card{padding:12px 16px!important;}
+}
 </style>
 """
 
@@ -53,6 +72,7 @@ def render_sidebar() -> None:
         st.page_link("pages/sentiment_dashboard.py", label="🧠  Sentiment")
         st.page_link("pages/portfolio_analyzer.py", label="💼  Portfolio")
         st.page_link("pages/ai_chat.py", label="💬  AI Chat")
+        st.page_link("pages/alerts.py", label="🔔  Alerts")
 
         st.markdown("<hr style='border-color:rgba(255,255,255,0.07);margin:16px 0;'>", unsafe_allow_html=True)
         st.markdown(

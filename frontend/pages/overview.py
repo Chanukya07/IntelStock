@@ -21,27 +21,27 @@ st.markdown("""
 
 render_sidebar()
 
-animated_header("Market Overview", "Live indices · NSE/BSE")
+animated_header("Market Overview", "Live indices · NSE/BSE · August 2026")
 
-# KPIs
+# KPIs — August 2026 levels
 c1,c2,c3,c4 = st.columns(4)
-with c1: st.metric("NIFTY 50","24,762","+306 (+1.24%)")
-with c2: st.metric("NIFTY BANK","52,847","+0.63%")
-with c3: st.metric("SENSEX","81,467","+702 (+0.87%)")
-with c4: st.metric("VIX","13.42","-0.8%",delta_color="inverse")
+with c1: st.metric("NIFTY 50","26,485","+328 (+1.25%)")
+with c2: st.metric("NIFTY BANK","57,120","+0.74%")
+with c3: st.metric("SENSEX","86,940","+1,050 (+1.22%)")
+with c4: st.metric("VIX","12.8","-0.6%",delta_color="inverse")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Watchlist table
+# Watchlist table — current August 2026 prices
 watchlist = [
-    {"Symbol":"RELIANCE","Name":"Reliance Industries","Price":"₹2,987","Change":"+2.4%","52W Low":"₹2,220","52W High":"₹3,024","Volume":"4.2M","Sentiment":"Bullish"},
-    {"Symbol":"TCS",     "Name":"Tata Consultancy",   "Price":"₹4,124","Change":"+1.8%","52W Low":"₹3,441","52W High":"₹4,592","Volume":"1.8M","Sentiment":"Bullish"},
-    {"Symbol":"HDFC",    "Name":"HDFC Bank",          "Price":"₹1,680","Change":"-0.9%","52W Low":"₹1,430","52W High":"₹1,795","Volume":"6.1M","Sentiment":"Neutral"},
-    {"Symbol":"INFY",    "Name":"Infosys",            "Price":"₹1,925","Change":"+3.1%","52W Low":"₹1,358","52W High":"₹2,006","Volume":"3.3M","Sentiment":"Bullish"},
-    {"Symbol":"WIPRO",   "Name":"Wipro",              "Price":"₹548",  "Change":"-0.4%","52W Low":"₹398",  "52W High":"₹593",  "Volume":"2.7M","Sentiment":"Neutral"},
-    {"Symbol":"ITC",     "Name":"ITC Limited",        "Price":"₹469",  "Change":"+0.7%","52W Low":"₹412",  "52W High":"₹509",  "Volume":"5.8M","Sentiment":"Bullish"},
-    {"Symbol":"TATASTEEL","Name":"Tata Steel",        "Price":"₹184",  "Change":"-1.8%","52W Low":"₹122",  "52W High":"₹199",  "Volume":"9.2M","Sentiment":"Bearish"},
-    {"Symbol":"MARUTI",  "Name":"Maruti Suzuki",      "Price":"₹12,440","Change":"+0.5%","52W Low":"₹10,030","52W High":"₹13,680","Volume":"0.8M","Sentiment":"Bullish"},
+    {"Symbol":"RELIANCE","Name":"Reliance Industries","Price":"₹3,245","Change":"+2.4%","52W Low":"₹2,480","52W High":"₹3,320","Volume":"4.2M","Sentiment":"Bullish"},
+    {"Symbol":"TCS",     "Name":"Tata Consultancy",   "Price":"₹4,385","Change":"+1.8%","52W Low":"₹3,620","52W High":"₹4,490","Volume":"1.8M","Sentiment":"Bullish"},
+    {"Symbol":"HDFCBANK","Name":"HDFC Bank",          "Price":"₹1,945","Change":"-0.6%","52W Low":"₹1,590","52W High":"₹2,010","Volume":"6.1M","Sentiment":"Neutral"},
+    {"Symbol":"INFY",    "Name":"Infosys",            "Price":"₹2,156","Change":"+3.1%","52W Low":"₹1,640","52W High":"₹2,230","Volume":"3.3M","Sentiment":"Bullish"},
+    {"Symbol":"WIPRO",   "Name":"Wipro",              "Price":"₹625",  "Change":"-0.4%","52W Low":"₹462",  "52W High":"₹670",  "Volume":"2.7M","Sentiment":"Neutral"},
+    {"Symbol":"ITC",     "Name":"ITC Limited",        "Price":"₹540",  "Change":"+0.7%","52W Low":"₹458",  "52W High":"₹568",  "Volume":"5.8M","Sentiment":"Bullish"},
+    {"Symbol":"TATASTEEL","Name":"Tata Steel",        "Price":"₹165",  "Change":"-1.8%","52W Low":"₹110",  "52W High":"₹182",  "Volume":"9.2M","Sentiment":"Bearish"},
+    {"Symbol":"MARUTI",  "Name":"Maruti Suzuki",      "Price":"₹13,840","Change":"+0.5%","52W Low":"₹11,200","52W High":"₹14,960","Volume":"0.8M","Sentiment":"Bullish"},
 ]
 
 st.markdown("<div class='intel-card'><h3 style='color:#e2e8f0;margin-bottom:16px;'>📋 My Watchlist</h3>", unsafe_allow_html=True)

@@ -101,6 +101,7 @@ with st.sidebar:
     st.page_link("pages/sentiment_dashboard.py",   label="🧠  Sentiment")
     st.page_link("pages/portfolio_analyzer.py",    label="💼  Portfolio")
     st.page_link("pages/ai_chat.py",               label="💬  AI Chat")
+    st.page_link("pages/alerts.py",                label="🔔  Alerts")
 
     st.markdown("<hr style='border:none;border-top:1px solid rgba(255,255,255,0.07);margin:8px 0;'/>", unsafe_allow_html=True)
     st.markdown("""
@@ -118,15 +119,15 @@ st.markdown("""
 <div class="ticker-wrap">
   <div class="ticker-content">
     &nbsp;&nbsp;&nbsp;
-    <span class="up">▲ RELIANCE 2,987.45 (+2.4%)</span> &nbsp;·&nbsp;
-    <span class="up">▲ TCS 4,123.80 (+1.8%)</span> &nbsp;·&nbsp;
-    <span class="dn">▼ HDFC 1,680.20 (-0.9%)</span> &nbsp;·&nbsp;
-    <span class="up">▲ INFY 1,924.60 (+3.1%)</span> &nbsp;·&nbsp;
-    <span class="dn">▼ WIPRO 548.30 (-0.4%)</span> &nbsp;·&nbsp;
-    <span class="up">▲ ITC 468.90 (+0.7%)</span> &nbsp;·&nbsp;
-    <span class="dn">▼ TATASTEEL 184.50 (-1.8%)</span> &nbsp;·&nbsp;
-    <span class="up">▲ NIFTY 24,762 (+1.24%)</span> &nbsp;·&nbsp;
-    <span class="up">▲ SENSEX 81,467 (+0.87%)</span>
+    <span class="up">▲ RELIANCE 3,245.50 (+2.4%)</span> &nbsp;·&nbsp;
+    <span class="up">▲ TCS 4,385.75 (+1.8%)</span> &nbsp;·&nbsp;
+    <span class="dn">▼ HDFCBANK 1,945.30 (-0.6%)</span> &nbsp;·&nbsp;
+    <span class="up">▲ INFY 2,156.40 (+3.1%)</span> &nbsp;·&nbsp;
+    <span class="dn">▼ WIPRO 625.80 (-0.4%)</span> &nbsp;·&nbsp;
+    <span class="up">▲ ITC 540.20 (+0.7%)</span> &nbsp;·&nbsp;
+    <span class="dn">▼ TATASTEEL 165.30 (-1.8%)</span> &nbsp;·&nbsp;
+    <span class="up">▲ NIFTY 26,485 (+1.25%)</span> &nbsp;·&nbsp;
+    <span class="up">▲ SENSEX 86,940 (+1.22%)</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -141,8 +142,8 @@ st.markdown("<div style='color:#64748b;font-size:0.8rem;margin-bottom:24px;'>NSE
 
 # ── KPIs ──────────────────────────────────────────────────────────────────────
 c1, c2, c3, c4 = st.columns(4)
-with c1: st.metric("NIFTY 50", "24,762", "+1.24% today")
-with c2: st.metric("SENSEX", "81,467", "+0.87%")
+with c1: st.metric("NIFTY 50", "26,485", "+1.25% today")
+with c2: st.metric("SENSEX", "86,940", "+1.22%")
 with c3: st.metric("Portfolio P&L", "+₹1.24L", "+8.3% overall")
 with c4: st.metric("AI Sentiment", "Bullish 🟢", "73% positive signals", delta_color="off")
 
@@ -154,7 +155,7 @@ col_chart, col_movers = st.columns([2, 1])
 with col_chart:
     st.markdown("<div class='intel-card'><h3>Nifty 50 — Price Chart</h3><div class='sub'>NSE · Live feed</div>", unsafe_allow_html=True)
     times  = ["9:15","9:45","10:15","10:45","11:15","11:45","12:15","12:45","13:15","13:45","14:15","14:45","15:00","15:29"]
-    prices = [24580,24620,24595,24660,24710,24690,24680,24720,24750,24735,24760,24730,24780,24762]
+    prices = [26185,26220,26195,26260,26310,26290,26280,26320,26350,26335,26360,26330,26380,26485]
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=times, y=prices, mode='lines',
@@ -175,11 +176,11 @@ with col_chart:
 with col_movers:
     st.markdown("<div class='intel-card'><h3>Top Movers</h3><div class='sub'>NSE today</div>", unsafe_allow_html=True)
     movers = [
-        {"sym":"INFY",    "sector":"IT",      "price":"₹1,924","chg":"+3.1%","up":True},
-        {"sym":"RELIANCE","sector":"Energy",  "price":"₹2,987","chg":"+2.4%","up":True},
-        {"sym":"TCS",     "sector":"IT",      "price":"₹4,124","chg":"+1.8%","up":True},
-        {"sym":"BAJFIN",  "sector":"Finance", "price":"₹7,240","chg":"-1.2%","up":False},
-        {"sym":"HDFC",    "sector":"Banking", "price":"₹1,680","chg":"-0.9%","up":False},
+        {"sym":"INFY",    "sector":"IT",      "price":"₹2,156","chg":"+3.1%","up":True},
+        {"sym":"RELIANCE","sector":"Energy",  "price":"₹3,245","chg":"+2.4%","up":True},
+        {"sym":"TCS",     "sector":"IT",      "price":"₹4,385","chg":"+1.8%","up":True},
+        {"sym":"BAJFIN",  "sector":"Finance", "price":"₹8,640","chg":"-1.2%","up":False},
+        {"sym":"HDFCBANK","sector":"Banking", "price":"₹1,945","chg":"-0.6%","up":False},
     ]
     for m in movers:
         color = "#34d399" if m["up"] else "#f87171"
