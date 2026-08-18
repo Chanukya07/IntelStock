@@ -8,7 +8,19 @@ from sqlalchemy.pool import StaticPool
 from backend.database.models import Base
 
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./intelstock.db")
+def _default_database_url() -> str:
+    """SQLite default for when no DATABASE_URL is configured.
+
+    On Vercel the repo directory is read-only, so the file must live in /tmp.
+    That store is ephemeral (wiped on cold start) — fine for a smoke test,
+    but real deployments there need a hosted Postgres DATABASE_URL.
+    """
+    if os.getenv("VERCEL"):
+        return "sqlite:////tmp/intelstock.db"
+    return "sqlite:///./intelstock.db"
+
+
+DATABASE_URL = os.getenv("DATABASE_URL", _default_database_url())
 
 
 def _normalize_database_url(url: str) -> str:

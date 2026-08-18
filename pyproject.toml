@@ -1,0 +1,41 @@
+# Read by Vercel's Python builder (uv). IMPORTANT: when this file exists,
+# Vercel installs dependencies FROM IT and ignores requirements.txt — so the
+# [project] table below must be complete or the build dies before installing
+# anything. requirements.txt remains the install set for Render/local/tests
+# (it additionally carries the Streamlit UI stack, which the API-only Vercel
+# deployment does not need).
+[project]
+name = "intelstock"
+version = "0.1.0"
+description = "AI stock intelligence API for Indian markets (NSE/BSE)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.111.0",
+    "pydantic>=2.7.0",
+    "sqlalchemy>=2.0.0",
+    # Loaded dynamically by SQLAlchemy from the postgresql+psycopg2:// URL
+    # scheme, so no import statement names it — do not remove.
+    "psycopg2-binary>=2.9.0",
+    "openai>=1.3.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
+    "httpx>=0.27.0",
+    # FastAPI loads this dynamically for form parsing — same caveat.
+    "python-multipart>=0.0.9",
+    "yfinance>=0.2.40",
+    "faiss-cpu>=1.7.4",
+    "numpy>=1.24.0",
+]
+
+[tool.uv]
+# This repo is an application, not an installable package. Without this, uv
+# tries to build the project itself and setuptools discovery fails on the
+# multiple top-level directories (backend/, frontend/, docs/, ...).
+package = false
+
+# Vercel's FastAPI builder needs the ASGI entrypoint named explicitly because
+# the app lives in backend/main.py rather than one of the default locations
+# it probes (main.py, app.py, index.py at the repo root).
+# https://vercel.com/docs/frameworks/backend/fastapi#exporting-the-fastapi-application
+[tool.vercel]
+entrypoint = "backend.main:app"

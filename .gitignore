@@ -24,3 +24,7 @@ __pycache__/
 # Log files (keep directory but ignore generated logs)
 /logs/*
 !/logs/.gitkeep
+
+# uv artifacts (Vercel builds resolve from pyproject.toml directly)
+uv.lock
+.venv/
