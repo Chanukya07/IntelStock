@@ -76,6 +76,32 @@ app.include_router(advanced_router)
 app.include_router(cron_router)
 
 
+@app.get("/")
+def root() -> dict[str, object]:
+    """Landing route for the bare domain.
+
+    Without this, opening the deployed URL in a browser returns a bare
+    404 — which reads as "the deploy is broken" when the API is actually
+    fine. Points a human at something useful instead.
+    """
+    return {
+        "service": "IntelStock API",
+        "status": "ok",
+        "docs": "/docs",
+        "health": "/health",
+        "endpoints": [
+            "/stock?symbol=RELIANCE",
+            "/news?symbol=RELIANCE",
+            "/sentiment?symbol=RELIANCE",
+            "/insights?symbol=RELIANCE",
+            "/portfolio?user_id=1",
+            "/api/v1/portfolio/analytics?user_id=1",
+            "/api/v1/alerts?user_id=1",
+        ],
+        "note": "JSON API only — the Streamlit dashboard deploys separately (see docs/DEPLOYMENT.md).",
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "db": "initialized"}
