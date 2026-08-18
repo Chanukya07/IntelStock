@@ -204,6 +204,12 @@ def test_portfolio_analytics_service_metrics():
 
 
 def test_portfolio_analytics_sharpe_ratio():
+    """A Sharpe ratio needs a return series, which a snapshot of holdings does not
+    contain. This used to assert the value was a float — but that float was
+    fabricated from the total return, not measured, so the assertion was really
+    pinning a bug in place. Without price history the honest answer is None,
+    flagged via metric_status.
+    """
     from backend.services.portfolio_analytics_service import PortfolioAnalyticsService
 
     svc = PortfolioAnalyticsService()
@@ -212,8 +218,17 @@ def test_portfolio_analytics_sharpe_ratio():
     ]
 
     metrics = svc.calculate_metrics(holdings, {})
-    # Sharpe ratio should be finite
-    assert isinstance(metrics.sharpe_ratio, float)
+
+    assert metrics.sharpe_ratio is None
+    assert metrics.risk_metrics_available is False
+    assert "requires price history" in metrics.metric_status["sharpe_ratio"]
+
+    # Given a real equity curve it must produce an actual number.
+    history = {"RELIANCE": [100.0 + i * 0.5 + (i % 3) for i in range(60)]}
+    with_history = svc.calculate_metrics(holdings, {}, price_history=history)
+
+    assert isinstance(with_history.sharpe_ratio, float)
+    assert with_history.risk_metrics_available is True
 
 
 def test_portfolio_analytics_empty_holdings():

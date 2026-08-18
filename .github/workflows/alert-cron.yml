@@ -1,0 +1,84 @@
+name: Alert Cron
+
+# Drives IntelStock's scheduled jobs from GitHub Actions rather than from the
+# hosting platform. This is intentional:
+#   - Render's free tier spins the service down after ~15 min idle, which
+#     stops the in-process scheduler. This wakes it back up.
+#   - Vercel's Hobby cron is capped at once per day, which is useless for
+#     price alerts.
+# Because it is just HTTP, the same workflow keeps working if the app moves
+# to a different host — only the INTELSTOCK_URL secret changes.
+#
+# Required repository secrets (Settings > Secrets and variables > Actions):
+#   INTELSTOCK_URL  e.g. https://intelstock.onrender.com   (no trailing slash)
+#   CRON_SECRET     must match the CRON_SECRET env var on the host
+#
+# Caveats of GitHub's scheduler (documented so nobody is surprised):
+#   - Minimum interval is 5 minutes, and runs are best-effort: under load
+#     GitHub delays or drops scheduled runs. Do not treat this as real-time.
+#   - Scheduled workflows are auto-disabled after 60 days of repo inactivity.
+
+on:
+  schedule:
+    # Every 10 minutes. Cheap because the free-tier host is likely asleep
+    # anyway, and alert checks are idempotent.
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+# If a previous run is still going (cold start can take ~1 min), don't pile up.
+concurrency:
+  group: alert-cron
+  cancel-in-progress: false
+
+jobs:
+  run-scheduled-jobs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wake the service
+        # Free-tier cold starts take up to ~60s, so allow a generous timeout
+        # and retry. Failure here is non-fatal; the next step reports properly.
+        run: |
+          curl -sS --fail --show-error \
+               --retry 5 --retry-all-errors --retry-delay 15 \
+               --max-time 120 \
+               "${INTELSTOCK_URL}/api/v1/cron/ping" \
+            || echo "::warning::Service did not wake in time; continuing anyway"
+        env:
+          INTELSTOCK_URL: ${{ secrets.INTELSTOCK_URL }}
+
+      - name: Check price alerts
+        run: |
+          if [ -z "${CRON_SECRET}" ]; then
+            echo "::error::CRON_SECRET repository secret is not set"
+            exit 1
+          fi
+          curl -sS --fail --show-error \
+               --retry 3 --retry-all-errors --retry-delay 10 \
+               --max-time 180 \
+               -X POST \
+               -H "Authorization: Bearer ${CRON_SECRET}" \
+               "${INTELSTOCK_URL}/api/v1/cron/check-alerts"
+        env:
+          INTELSTOCK_URL: ${{ secrets.INTELSTOCK_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+  refresh-rag:
+    # The news corpus changes far more slowly than prices, so re-indexing
+    # every 10 minutes would be pure waste. Hourly is plenty.
+    if: ${{ github.event_name == 'workflow_dispatch' || fromJSON(format('{0}', github.run_number)) % 6 == 0 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Refresh RAG index
+        run: |
+          curl -sS --fail --show-error \
+               --retry 3 --retry-all-errors --retry-delay 10 \
+               --max-time 180 \
+               -X POST \
+               -H "Authorization: Bearer ${CRON_SECRET}" \
+               "${INTELSTOCK_URL}/api/v1/cron/refresh-rag" \
+            || echo "::warning::RAG refresh failed (non-fatal)"
+        env:
+          INTELSTOCK_URL: ${{ secrets.INTELSTOCK_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

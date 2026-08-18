@@ -21,7 +21,10 @@ render_sidebar()
 animated_header("Market Overview", "Live indices · NSE/BSE")
 
 mkt = MarketDataService()
-idx = mkt.fetch_index_values()
+try:
+    idx = mkt.fetch_index_values()
+except Exception:  # page must still render with the network down
+    idx = {}
 
 
 def fmt(idx_data, key):
@@ -46,73 +49,99 @@ st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("<div class='intel-card'><h3 style='color:#e2e8f0;margin-bottom:12px;'>Market Watchlist</h3><div style='color:#64748b;font-size:0.75rem;margin-bottom:16px;'>Key NSE stocks at a glance</div>", unsafe_allow_html=True)
 
 watch_symbols = ["RELIANCE", "TCS", "INFY", "HDFCBANK", "WIPRO"]
-watch_names = {
-    "RELIANCE": "Reliance Industries",
-    "TCS": "Tata Consultancy Services",
-    "INFY": "Infosys",
-    "HDFCBANK": "HDFC Bank",
-    "WIPRO": "Wipro",
-}
-watch = []
+quotes = []
 for sym in watch_symbols:
-    q = mkt.fetch_live_quote(sym)
-    watch.append({
-        "Symbol": sym,
-        "Name": watch_names[sym],
+    try:
+        quotes.append(mkt.fetch_live_quote(sym))
+    except Exception:  # a single bad symbol must not blank the page
+        continue
+# fetch_live_quote carries "name" on both the live and cached branches, so no
+# local symbol->name table is needed.
+watch = [
+    {
+        "Symbol": q["symbol"],
+        "Name": q["name"],
         "Price": q["price"],
         "Change": f"{q['change_pct']:+.2f}%",
         "Volume": q["volume"],
         "Sentiment": q["sentiment"],
-    })
-dfw = pd.DataFrame(watch)
-st.dataframe(
-    dfw,
-    width="stretch",
-    hide_index=True,
-    column_config={
-        "Change": st.column_config.TextColumn("Change"),
-        "Volume": st.column_config.TextColumn("Volume"),
-        "Sentiment": st.column_config.TextColumn("Sentiment"),
-    },
-)
-st.markdown("</div>", unsafe_allow_html=True)
-st.markdown("<br>", unsafe_allow_html=True)
-
-st.markdown("<div class='intel-card'><h3 style='color:#e2e8f0;margin-bottom:12px;'>Nifty 50 — Intraday</h3><div style='color:#64748b;font-size:0.75rem;margin-bottom:16px;'>Live market hours</div>", unsafe_allow_html=True)
-times = ["9:15", "9:45", "10:15", "10:45", "11:15", "11:45", "12:15", "12:45", "13:15", "13:45", "14:15", "14:45", "15:00", "15:29"]
-base = n_val or 26485.60
-prices = [base - 300, base - 265, base - 290, base - 225, base - 175, base - 195, base - 205, base - 165, base - 135, base - 150, base - 125, base - 155, base - 105, base]
-fig = go.Figure()
-fig.add_trace(go.Scatter(x=times, y=prices, mode="lines", line=dict(color="#00d4aa", width=2), fill="tozeroy", fillcolor="rgba(0,212,170,0.06)"))
-fig.update_layout(
-    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-    height=280, margin=dict(l=0, r=0, t=8, b=0),
-    xaxis=dict(showgrid=False, color="#64748b", tickfont=dict(size=10)),
-    yaxis=dict(gridcolor="rgba(255,255,255,0.04)", color="#64748b", tickfont=dict(size=10)),
-    showlegend=False, hovermode="x unified",
-)
-st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
-st.markdown("</div>", unsafe_allow_html=True)
-st.markdown("<br>", unsafe_allow_html=True)
-
-st.markdown("<div class='intel-card'><h3 style='color:#e2e8f0;margin-bottom:12px;'>Market Breadth</h3><div style='color:#64748b;font-size:0.75rem;margin-bottom:16px;'>Advancers vs decliners on NSE</div>", unsafe_allow_html=True)
-bc1, bc2 = st.columns(2)
-with bc1:
-    st.markdown(
-        """
-        <div style='display:flex;align-items:center;gap:12px;margin-bottom:12px;'><span style='width:12px;height:12px;border-radius:50%;background:#34d399;'></span><span style='color:#e2e8f0;font-size:0.85rem;'>Advancing: <span style='font-weight:700;color:#34d399;'>2,847</span></span></div>
-        <div style='display:flex;align-items:center;gap:12px;'><span style='width:12px;height:12px;border-radius:50%;background:#f87171;'></span><span style='color:#e2e8f0;font-size:0.85rem;'>Declining: <span style='font-weight:700;color:#f87171;'>753</span></span></div>
-        <div style='display:flex;align-items:center;gap:12px;margin-top:12px;'><span style='width:12px;height:12px;border-radius:50%;background:#64748b;'></span><span style='color:#e2e8f0;font-size:0.85rem;'>Unchanged: <span style='font-weight:700;color:#94a3b8;'>45</span></span></div>
-        <div style='font-size:0.7rem;color:#64748b;margin-top:8px;'>NSE · NIFTY 500 universe</div>
-        """,
-        unsafe_allow_html=True,
+    }
+    for q in quotes
+]
+if watch:
+    st.dataframe(
+        pd.DataFrame(watch),
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "Change": st.column_config.TextColumn("Change"),
+            "Volume": st.column_config.TextColumn("Volume"),
+            "Sentiment": st.column_config.TextColumn("Sentiment"),
+        },
     )
-with bc2:
-    fig_b = go.Figure(go.Pie(
-        labels=["Advancing", "Declining", "Unchanged"], values=[2847, 753, 45],
-        marker_colors=["#34d399", "#f87171", "#64748b"], hole=0.5,
-        textinfo="percent", textfont=dict(size=11, color="#e2e8f0"),
+else:
+    st.info("Quote data unavailable.")
+st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
+
+st.markdown(f"<div class='intel-card'><h3 style='color:#e2e8f0;margin-bottom:12px;'>Nifty 50 — Session Move</h3><div style='color:#64748b;font-size:0.75rem;margin-bottom:16px;'>Open to last print{st_live(n_st)}</div>", unsafe_allow_html=True)
+# MarketDataService has no intraday history method, so the minute-by-minute series
+# that used to live here was fabricated from n_val. The only two points actually
+# sourced are the session open (last - change) and the latest print; the connecting
+# line is drawn dashed because the real path between them is unknown.
+if n_val:
+    n_open = n_val - n_chg
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=["Open", "Last"], y=[n_open, n_val], mode="lines+markers+text",
+        line=dict(color="#00d4aa", width=2, dash="dot"),
+        marker=dict(color="#00d4aa", size=10),
+        text=[f"{n_open:,.2f}", f"{n_val:,.2f}"], textposition="top center",
+        textfont=dict(size=11, color="#e2e8f0"),
+        hovertemplate="<b>%{x}</b><br>%{y:,.2f}<extra></extra>",
     ))
-    fig_b.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", height=220, margin=dict(l=0, r=0, t=0, b=0), showlegend=False)
-    st.plotly_chart(fig_b, width="stretch", config={"displayModeBar": False})
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        height=280, margin=dict(l=0, r=0, t=24, b=0),
+        xaxis=dict(showgrid=False, color="#64748b", tickfont=dict(size=10)),
+        yaxis=dict(gridcolor="rgba(255,255,255,0.04)", color="#64748b", tickfont=dict(size=10)),
+        showlegend=False, hovermode="x unified",
+    )
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
+    st.markdown("<div style='color:#64748b;font-size:0.7rem;'>Indicative — tick-level intraday history is not available; only the open and last print are sourced.</div>", unsafe_allow_html=True)
+else:
+    st.info("Intraday series unavailable.")
+st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
+
+# Breadth is counted over the symbols this page actually quoted — the old 2847/753/45
+# NIFTY 500 reading was never measured anywhere in the codebase. Both halves of the
+# card read from these three counters so they cannot drift apart.
+adv = sum(1 for q in quotes if q["change_pct"] > 0)
+dec = sum(1 for q in quotes if q["change_pct"] < 0)
+unch = len(quotes) - adv - dec
+breadth_st = "live" if quotes and all(q.get("status") == "live" for q in quotes) else "cached"
+st.markdown(f"<div class='intel-card'><h3 style='color:#e2e8f0;margin-bottom:12px;'>Market Breadth</h3><div style='color:#64748b;font-size:0.75rem;margin-bottom:16px;'>Advancers vs decliners across tracked symbols{st_live(breadth_st)}</div>", unsafe_allow_html=True)
+if quotes:
+    bc1, bc2 = st.columns(2)
+    with bc1:
+        st.markdown(
+            f"""
+            <div style='display:flex;align-items:center;gap:12px;margin-bottom:12px;'><span style='width:12px;height:12px;border-radius:50%;background:#34d399;'></span><span style='color:#e2e8f0;font-size:0.85rem;'>Advancing: <span style='font-weight:700;color:#34d399;'>{adv}</span></span></div>
+            <div style='display:flex;align-items:center;gap:12px;'><span style='width:12px;height:12px;border-radius:50%;background:#f87171;'></span><span style='color:#e2e8f0;font-size:0.85rem;'>Declining: <span style='font-weight:700;color:#f87171;'>{dec}</span></span></div>
+            <div style='display:flex;align-items:center;gap:12px;margin-top:12px;'><span style='width:12px;height:12px;border-radius:50%;background:#64748b;'></span><span style='color:#e2e8f0;font-size:0.85rem;'>Unchanged: <span style='font-weight:700;color:#94a3b8;'>{unch}</span></span></div>
+            <div style='font-size:0.7rem;color:#64748b;margin-top:8px;'>NSE · {len(quotes)} tracked symbols</div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with bc2:
+        fig_b = go.Figure(go.Pie(
+            labels=["Advancing", "Declining", "Unchanged"], values=[adv, dec, unch],
+            marker_colors=["#34d399", "#f87171", "#64748b"], hole=0.5,
+            textinfo="percent", textfont=dict(size=11, color="#e2e8f0"),
+        ))
+        fig_b.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", height=220, margin=dict(l=0, r=0, t=0, b=0), showlegend=False)
+        st.plotly_chart(fig_b, width="stretch", config={"displayModeBar": False})
+else:
+    st.info("Breadth unavailable — no quotes could be loaded.")
 st.markdown("</div>", unsafe_allow_html=True)

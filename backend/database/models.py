@@ -8,6 +8,7 @@ kept in sync with that file so the ORM and the reference DDL never diverge.
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
@@ -31,6 +32,7 @@ class User(Base):
     watchlists = relationship("Watchlist", back_populates="user", cascade="all, delete-orphan")
     portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete-orphan")
     chats = relationship("ChatHistory", back_populates="user", cascade="all, delete-orphan")
+    alerts = relationship("Alert", back_populates="user", cascade="all, delete-orphan")
 
 
 class Stock(Base):
@@ -134,3 +136,28 @@ class Portfolio(Base):
 
     user = relationship("User", back_populates="portfolios")
     stock = relationship("Stock")
+
+
+class Alert(Base):
+    """A user's price alert.
+
+    The watched instrument is stored as a denormalized ``symbol`` string
+    rather than a ``stocks.id`` foreign key: the scheduler re-evaluates every
+    active alert against ``quote["symbol"]`` on each poll, so keying on the
+    symbol avoids a join on the hot path, and an alert can be created for a
+    symbol that has no ``stocks`` row yet.
+    """
+
+    __tablename__ = "alerts"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    symbol = Column(String(50), nullable=False)
+    alert_type = Column(String(50), nullable=False)
+    threshold = Column(Numeric, nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    triggered_at = Column(DateTime, nullable=True)
+    triggered_price = Column(Numeric, nullable=True)
+
+    user = relationship("User", back_populates="alerts")

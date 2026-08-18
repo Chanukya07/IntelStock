@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 from datetime import datetime
 
 from backend.services.market_data_service import MarketDataService
@@ -14,6 +15,11 @@ from backend.rag.retriever import RAGRetriever
 logger = logging.getLogger(__name__)
 
 _alert_service = None
+
+# The vector store writes FAISS/pickle files in place, and the in-process loop
+# can now overlap a cron-triggered /api/v1/cron/refresh-rag. Serialize the
+# indexing so two workers never rewrite the same files at once.
+_rag_write_lock = threading.Lock()
 
 
 def _get_alert_service():
@@ -30,18 +36,28 @@ def _get_alert_service():
         _alert_service = alert_service
     return _alert_service
 
+
+def _index_news(rag, headlines: list[str], symbol: str) -> None:
+    """Index headlines under the shared write lock (runs on a worker thread)."""
+    with _rag_write_lock:
+        rag.index_news(headlines, symbol=symbol)
+
+
 TRACKED_SYMBOLS = ("RELIANCE", "TCS", "INFY", "WIPRO", "HDFC", "HDFCBANK", "NIFTY")
 REFRESH_INTERVAL_SECONDS = 900  # 15 minutes
 
 
-async def refresh_market_data() -> None:
+async def refresh_market_data(market_data: MarketDataService | None = None) -> None:
     """Fetch and cache live quotes for tracked symbols."""
     logger.info("Starting market data refresh at %s", datetime.now().isoformat())
-    market_data = MarketDataService()
+    market_data = market_data or MarketDataService()
 
     for symbol in TRACKED_SYMBOLS:
         try:
-            market_data.fetch_live_quote(symbol)
+            # fetch_live_quote does blocking yfinance/requests I/O; running it
+            # inline would stall the event loop for the whole refresh (and for
+            # the full network timeout when the host is offline).
+            await asyncio.to_thread(market_data.fetch_live_quote, symbol)
             logger.debug("Refreshed %s", symbol)
         except Exception as e:
             logger.warning("Failed to refresh %s: %s", symbol, e)
@@ -49,17 +65,18 @@ async def refresh_market_data() -> None:
     logger.info("Market data refresh completed")
 
 
-async def warm_up_sentiment_cache() -> None:
+async def warm_up_sentiment_cache(market_data: MarketDataService | None = None) -> None:
     """Pre-compute sentiment scores for tracked symbols."""
     logger.info("Starting sentiment cache warm-up at %s", datetime.now().isoformat())
     sentiment = SentimentService()
-    market_data = MarketDataService()
+    market_data = market_data or MarketDataService()
 
     for symbol in TRACKED_SYMBOLS:
         try:
-            quote = market_data.fetch_live_quote(symbol)
+            quote = await asyncio.to_thread(market_data.fetch_live_quote, symbol)
             narrative = f"{quote['name']} shows {quote['sentiment'].lower()} momentum with a {quote['change_pct']:+.2f}% move."
-            sentiment.score_news(f"{quote['headline']} {narrative}")
+            # score_news calls the OpenAI SDK synchronously.
+            await asyncio.to_thread(sentiment.score_news, f"{quote['headline']} {narrative}")
             logger.debug("Warmed up sentiment for %s", symbol)
         except Exception as e:
             logger.warning("Failed to warm up sentiment for %s: %s", symbol, e)
@@ -67,16 +84,19 @@ async def warm_up_sentiment_cache() -> None:
     logger.info("Sentiment cache warm-up completed")
 
 
-async def check_price_alerts() -> None:
+async def check_price_alerts(market_data: MarketDataService | None = None) -> None:
     """Evaluate active price alerts against live quotes and mark hits."""
     logger.info("Starting price alert check at %s", datetime.now().isoformat())
     alert_service = _get_alert_service()
-    market_data = MarketDataService()
+    market_data = market_data or MarketDataService()
 
     for symbol in TRACKED_SYMBOLS:
         try:
-            quote = market_data.fetch_live_quote(symbol)
-            triggered = alert_service.check_alerts(
+            quote = await asyncio.to_thread(market_data.fetch_live_quote, symbol)
+            # check_alerts opens its own DB session per call, so it is safe to
+            # run on a worker thread (the session never crosses threads).
+            triggered = await asyncio.to_thread(
+                alert_service.check_alerts,
                 symbol=quote["symbol"],
                 current_price=quote["price"],
                 change_pct=quote["change_pct"],
@@ -104,10 +124,11 @@ async def refresh_rag_index() -> None:
 
     for symbol in TRACKED_SYMBOLS:
         try:
-            news = news_service.fetch_company_news(symbol)
+            news = await asyncio.to_thread(news_service.fetch_company_news, symbol)
             headlines = news.get("headlines", [])
             if headlines:
-                rag.index_news(headlines, symbol=symbol)
+                # Embedding + FAISS write are CPU/IO bound and synchronous.
+                await asyncio.to_thread(_index_news, rag, headlines, symbol)
             logger.debug("Refreshed RAG index for %s (%d headlines)", symbol, len(headlines))
         except Exception as e:
             logger.warning("Failed to refresh RAG index for %s: %s", symbol, e)
@@ -118,12 +139,16 @@ async def refresh_rag_index() -> None:
 async def run_background_tasks() -> None:
     """Run all background refresh tasks concurrently."""
     while True:
+        # One MarketDataService per round: its 60s TTL cache lets the three
+        # quote-consuming jobs reuse a fetch instead of hitting the network
+        # three times for every tracked symbol.
+        market_data = MarketDataService()
         try:
             await asyncio.gather(
-                refresh_market_data(),
-                warm_up_sentiment_cache(),
+                refresh_market_data(market_data),
+                warm_up_sentiment_cache(market_data),
                 refresh_rag_index(),
-                check_price_alerts(),
+                check_price_alerts(market_data),
             )
         except Exception as e:
             logger.error("Background task error: %s", e)

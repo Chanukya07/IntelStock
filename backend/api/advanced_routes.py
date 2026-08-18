@@ -1,6 +1,6 @@
 """Advanced API routes for alerts, reports, and analytics."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -9,6 +9,7 @@ from backend.api.validators import validate_symbol, validate_user_id
 from backend.database import get_db
 from backend.services.alert_service import AlertService, AlertType
 from backend.services.portfolio_analytics_service import PortfolioAnalyticsService
+from backend.services.portfolio_service import build_user_holdings
 from backend.services.report_generator import ReportGenerator
 from backend.services.market_data_service import MarketDataService
 
@@ -52,7 +53,15 @@ def create_alert(user_id: int, payload: AlertRequest) -> dict[str, object]:
     user_id = validate_user_id(user_id)
     symbol = validate_symbol(payload.symbol)
 
-    alert_type = AlertType(payload.alert_type)
+    try:
+        alert_type = AlertType(payload.alert_type)
+    except ValueError:
+        # An unknown alert_type is client error, not a server fault.
+        raise HTTPException(
+            status_code=400,
+            detail=f"alert_type must be one of {[t.value for t in AlertType]}",
+        )
+
     alert = alert_service.create_alert(user_id, symbol, alert_type, payload.threshold)
 
     return {
@@ -89,9 +98,17 @@ def get_alerts(user_id: int) -> dict[str, object]:
 
 
 @router.delete("/alerts/{alert_id}")
-def delete_alert(alert_id: int) -> dict[str, str]:
-    """Delete an alert."""
-    success = alert_service.delete_alert(alert_id)
+def delete_alert(alert_id: int, user_id: int) -> dict[str, str]:
+    """Delete an alert belonging to the given user.
+
+    user_id is required and scopes the delete: alerts are durable rows now, so
+    without it any caller could delete any other user's alert just by guessing
+    an id. (This is ownership scoping, not authentication — there is still no
+    auth layer, so it stops accidents and id collisions rather than a
+    determined attacker.)
+    """
+    user_id = validate_user_id(user_id)
+    success = alert_service.delete_alert(alert_id, user_id=user_id)
     return {"status": "ok" if success else "error", "message": "Alert deleted" if success else "Alert not found"}
 
 
@@ -100,31 +117,10 @@ def get_portfolio_analytics(user_id: int, db: Session = Depends(get_db)) -> dict
     """Get advanced portfolio analytics."""
     user_id = validate_user_id(user_id)
 
-    # Fetch portfolio holdings (mock for now)
-    holdings = [
-        {
-            "symbol": "RELIANCE",
-            "quantity": 10,
-            "avg_price": 2640,
-            "current_price": 2987,
-            "sector": "Energy",
-        },
-        {
-            "symbol": "TCS",
-            "quantity": 5,
-            "avg_price": 3700,
-            "current_price": 4124,
-            "sector": "IT",
-        },
-        {
-            "symbol": "INFY",
-            "quantity": 20,
-            "avg_price": 1444,
-            "current_price": 1925,
-            "sector": "IT",
-        },
-    ]
+    holdings, _, _ = build_user_holdings(db, user_id, market_data_service)
 
+    # `prices` overrides a holding's current_price; build_user_holdings has
+    # already marked every holding to market, so there is nothing to override.
     metrics = analytics_service.calculate_metrics(holdings, {})
 
     return {
@@ -144,6 +140,12 @@ def get_portfolio_analytics(user_id: int, db: Session = Depends(get_db)) -> dict
             "sector_allocation": metrics.sector_allocation,
             "top_performers": metrics.top_performers,
             "bottom_performers": metrics.bottom_performers,
+            # Provenance for the four time-series metrics above, which are null
+            # whenever there is no price history to derive them from. Without
+            # these a client cannot tell "zero" from "not measured".
+            "risk_metrics_available": metrics.risk_metrics_available,
+            "holding_return_dispersion_pct": metrics.holding_return_dispersion_pct,
+            "metric_status": metrics.metric_status,
         },
     }
 
@@ -176,34 +178,18 @@ def generate_stock_report(symbol: str) -> StreamingResponse:
 
 
 @router.get("/reports/portfolio")
-def generate_portfolio_report(user_id: int) -> StreamingResponse:
+def generate_portfolio_report(user_id: int, db: Session = Depends(get_db)) -> StreamingResponse:
     """Generate portfolio statement report as PDF/HTML."""
     user_id = validate_user_id(user_id)
 
-    holdings = [
-        {
-            "symbol": "RELIANCE",
-            "quantity": 10,
-            "avg_price": 2640,
-            "current_price": 2987,
-            "market_value": 29870,
-            "gain_loss": 3470,
-        },
-        {
-            "symbol": "TCS",
-            "quantity": 5,
-            "avg_price": 3700,
-            "current_price": 4124,
-            "market_value": 20620,
-            "gain_loss": 2120,
-        },
-    ]
+    holdings, total_value, total_invested = build_user_holdings(db, user_id, market_data_service)
+    total_gain_loss = round(total_value - total_invested, 2)
 
     metrics = {
-        "total_value": 50490.0,
-        "total_invested": 44900.0,
-        "total_gain_loss": 5590.0,
-        "total_return_pct": 12.45,
+        "total_value": total_value,
+        "total_invested": total_invested,
+        "total_gain_loss": total_gain_loss,
+        "total_return_pct": round(total_gain_loss / total_invested * 100, 2) if total_invested else 0.0,
     }
 
     html_bytes = report_generator.generate_portfolio_report(holdings, metrics)

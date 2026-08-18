@@ -22,7 +22,14 @@ services:
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      # Probed with stdlib urllib, not curl: the python:3.11-slim base image has
+      # no curl, so a curl probe never exits 0 and the frontend's
+      # `condition: service_healthy` would block forever.
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:8000/health")
       interval: 30s
       timeout: 10s
       retries: 3
@@ -45,7 +52,12 @@ services:
     command: streamlit run frontend/dashboard.py --server.port 8501 --server.address 0.0.0.0 --server.headless true
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      # Streamlit's own health endpoint; same no-curl constraint as the backend.
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:8501/_stcore/health")
       interval: 30s
       timeout: 10s
       retries: 3

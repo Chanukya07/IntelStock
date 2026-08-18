@@ -25,6 +25,7 @@ from backend.services.chat_service import ChatService
 from backend.services.insight_service import InsightService
 from backend.services.market_data_service import MarketDataService
 from backend.services.news_intelligence_service import NewsIntelligenceService
+from backend.services.portfolio_service import build_user_holdings
 from backend.services.sentiment_service import SentimentService
 
 router = APIRouter()
@@ -73,7 +74,12 @@ def get_news(symbol: str, source: str | None = None) -> dict[str, object]:
     symbol = validate_symbol(symbol)
     news = news_service.fetch_company_news(symbol)
     if source:
-        news["source"] = source
+        # `source` is a filter, never an override: assigning it to the response's
+        # source field claimed the canned research headlines came from that outlet.
+        attribution = str(news.get("source", ""))
+        news["requested_source"] = source
+        if source.strip().lower() != attribution.strip().lower():
+            news["headlines"] = []
     return news
 
 
@@ -113,30 +119,10 @@ def chat_stream(payload: ChatRequest) -> StreamingResponse:
 def get_portfolio(user_id: int, db: Session = Depends(get_db)) -> dict[str, object]:
     """Get user's portfolio with live mark-to-market P&L."""
     user_id = validate_user_id(user_id)
-    holdings = PortfolioRepository(db).get_user_portfolio(user_id)
-
-    items: list[dict[str, object]] = []
-    total_value = 0.0
-    for holding in holdings:
-        symbol = holding.stock.symbol
-        quantity = float(holding.quantity)
-        avg_price = float(holding.avg_price)
-        current_price = float(market_data_service.fetch_live_quote(symbol)["price"])
-        market_value = current_price * quantity
-        total_value += market_value
-        items.append(
-            {
-                "id": holding.id,
-                "symbol": symbol,
-                "quantity": quantity,
-                "avg_price": avg_price,
-                "current_price": current_price,
-                "market_value": round(market_value, 2),
-                "gain_loss": round((current_price - avg_price) * quantity, 2),
-            }
-        )
-
-    return {"user_id": user_id, "portfolio": items, "total_value": round(total_value, 2)}
+    # Shared with the analytics and report endpoints so the page and the downloaded
+    # statement can never disagree.
+    items, total_value, _ = build_user_holdings(db, user_id, market_data_service)
+    return {"user_id": user_id, "portfolio": items, "total_value": total_value}
 
 
 @router.post("/portfolio")

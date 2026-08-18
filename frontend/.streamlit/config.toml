@@ -1,16 +1,32 @@
+# Single source of truth for Streamlit configuration.
+#
+# Streamlit merges global -> project ($CWD/.streamlit) -> script-level
+# (the .streamlit dir next to the main script), last one winning. The app is
+# always launched as `streamlit run frontend/dashboard.py`, so THIS file is the
+# script-level config and silently overrides any repo-root .streamlit/config.toml.
+# Do not recreate one at the repo root: it would be dead config that looks live.
+#
+# The palette matches the hand-written CSS in frontend/*.py (#00d4aa accent on
+# #080c12 / #0d1117 surfaces) so Streamlit-rendered chrome and the custom cards
+# do not paint in two different themes.
+
 [client]
 showSidebarNavigation = false
 
 [theme]
-primaryColor = "#00C7B1"
-backgroundColor = "#0B0F19"
-secondaryBackgroundColor = "#111827"
-textColor = "#E5E7EB"
+base = "dark"
+primaryColor = "#00d4aa"
+backgroundColor = "#080c12"
+secondaryBackgroundColor = "#0d1117"
+textColor = "#e2e8f0"
 font = "sans serif"
 
 [server]
 headless = true
-enableCORS = false
+# enableCORS is deliberately left at its default (true): setting it false
+# alongside XSRF protection makes Streamlit log an incompatibility warning and
+# ignore one of the two.
+enableXsrfProtection = true
 
 [browser]
 gatherUsageStats = false
