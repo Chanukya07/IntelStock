@@ -1,0 +1,15 @@
+# Keep the serverless bundle to what the API actually imports.
+# (Dependencies come from requirements.txt regardless; this trims source.)
+tests/
+docs/
+docker/
+docker-compose.yml
+.github/
+frontend/
+scripts/
+logs/
+vectorstore/
+data/
+render.yaml
+start.sh
+Procfile

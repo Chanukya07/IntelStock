@@ -25,11 +25,16 @@ def _scheduler_enabled() -> bool:
 
     Enabled by default, which is correct on a persistent host. Set
     ENABLE_SCHEDULER=false when an external scheduler drives
-    /api/v1/cron/* instead, so the jobs don't run twice — and on
-    serverless hosts, where a long-lived asyncio loop cannot survive
-    between invocations anyway.
+    /api/v1/cron/* instead, so the jobs don't run twice.
+
+    On Vercel (detected via the platform-injected VERCEL env var) the
+    default flips to off: instances are frozen between invocations, so a
+    long-lived asyncio loop cannot run there — /api/v1/cron/* driven by
+    GitHub Actions is the scheduling path instead. ENABLE_SCHEDULER still
+    overrides in either direction.
     """
-    return os.getenv("ENABLE_SCHEDULER", "true").strip().lower() not in {
+    default = "false" if os.getenv("VERCEL") else "true"
+    return os.getenv("ENABLE_SCHEDULER", default).strip().lower() not in {
         "false",
         "0",
         "no",

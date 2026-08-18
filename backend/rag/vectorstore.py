@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import os
 import pickle
 from pathlib import Path
 
@@ -10,12 +12,33 @@ import faiss
 
 from backend.rag.embeddings import EmbeddingService
 
+logger = logging.getLogger(__name__)
+
+
+def _default_store_path() -> str:
+    """Resolve where index files live.
+
+    Serverless filesystems are read-only outside /tmp, so the repo-local
+    default only applies to persistent hosts. RAG_VECTORSTORE_PATH overrides
+    both.
+    """
+    if os.getenv("RAG_VECTORSTORE_PATH"):
+        return os.environ["RAG_VECTORSTORE_PATH"]
+    return "/tmp/vectorstore" if os.getenv("VERCEL") else "vectorstore"
+
 
 class VectorStore:
-    def __init__(self, vectorstore_path: str = "vectorstore", model_name: str = "all-MiniLM-L6-v2") -> None:
+    def __init__(self, vectorstore_path: str | None = None, model_name: str = "all-MiniLM-L6-v2") -> None:
         """Initialize FAISS vector store."""
-        self.vectorstore_path = Path(vectorstore_path)
-        self.vectorstore_path.mkdir(exist_ok=True)
+        self.vectorstore_path = Path(vectorstore_path or _default_store_path())
+        try:
+            self.vectorstore_path.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            # Read-only deployment bundle: fall back to /tmp so the store still
+            # works for this process, just without surviving a cold start.
+            logger.warning("Vector store path %s not writable (%s); using /tmp", self.vectorstore_path, exc)
+            self.vectorstore_path = Path("/tmp/vectorstore")
+            self.vectorstore_path.mkdir(parents=True, exist_ok=True)
         self.embedding_service = EmbeddingService(model_name)
         self.index: faiss.IndexFlatL2 | None = None
         self.metadata: dict[int, str] = {}
@@ -70,10 +93,17 @@ class VectorStore:
         return results
 
     def _save_index(self) -> None:
-        """Save index and metadata to disk."""
-        faiss.write_index(self.index, str(self.index_file))
-        with open(self.metadata_file, "wb") as f:
-            pickle.dump(self.metadata, f)
+        """Save index and metadata to disk (best-effort).
+
+        A failed save must not take down indexing: the in-memory index keeps
+        serving this process, it just will not survive a restart.
+        """
+        try:
+            faiss.write_index(self.index, str(self.index_file))
+            with open(self.metadata_file, "wb") as f:
+                pickle.dump(self.metadata, f)
+        except OSError as exc:
+            logger.warning("Could not persist vector index to %s: %s", self.vectorstore_path, exc)
 
     def clear(self) -> None:
         """Clear all data."""

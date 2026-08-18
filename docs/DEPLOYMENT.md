@@ -152,12 +152,55 @@ through the paths above, which the Streamlit process proxies internally.
   Scheduled workflows are also auto-disabled after 60 days of repo inactivity.
 - **Postgres free plans expire.** Check Render's current retention policy and
   back up anything you care about.
-- **No `sentence-transformers`/`torch` in the deployed image** — they are
-  multi-GB. RAG degrades to no-context retrieval, which
-  `backend/rag/embeddings.py` already handles by returning zero vectors
-  rather than crashing.
+- **No `sentence-transformers`/`torch` in the default install** — they are
+  multi-GB and live in the optional `requirements/ml.txt` extra. RAG degrades
+  to no-context retrieval (`backend/rag/embeddings.py` returns zero vectors
+  rather than crashing). On a persistent host with disk to spare,
+  `pip install -r requirements/ml.txt` enables real semantic search.
 
 ---
+
+## Vercel (API only)
+
+The FastAPI backend can also deploy directly to Vercel — `pyproject.toml`
+declares the entrypoint the builder needs:
+
+```toml
+[tool.vercel]
+entrypoint = "backend.main:app"
+```
+
+**What you get is the API, not the app.** Vercel cannot run Streamlit, so
+none of the UI pages are served there — only `/health`, `/stock`, `/api/v1/*`
+and the other JSON endpoints. Treat it as an API host (e.g. for a future
+Next.js frontend), not an alternative to Render.
+
+When Vercel's `VERCEL=1` env var is present the code adapts itself:
+
+| Behaviour | Persistent host | Vercel |
+|---|---|---|
+| In-process scheduler | on | **off** (instances freeze between requests) |
+| Default SQLite path | `./intelstock.db` | `/tmp/intelstock.db` (ephemeral!) |
+| Log files | `logs/` | `/tmp/logs` (bundle is read-only) |
+| Vector store | `vectorstore/` | `/tmp/vectorstore` |
+
+`ENABLE_SCHEDULER`, `DATABASE_URL`, `LOG_DIR` and `RAG_VECTORSTORE_PATH`
+override each of these explicitly.
+
+Required setup in Vercel project settings:
+
+1. **`DATABASE_URL`** → a hosted Postgres (Neon/Supabase). Without it the
+   app boots on `/tmp` SQLite, which is wiped on every cold start — alerts
+   and portfolios silently reset. Fine for a smoke test, wrong for real use.
+2. **`OPENROUTER_API_KEY`** and **`CRON_SECRET`** — same meaning as on Render.
+3. **Disable Deployment Protection** (Settings → Deployment Protection →
+   Vercel Authentication → off). New Vercel projects gate every `*.vercel.app`
+   URL behind a Vercel login by default; until it is off, visitors get an SSO
+   redirect instead of the API, and the GitHub Actions cron cannot reach
+   `/api/v1/cron/*` either.
+4. Point the GitHub Actions secret `INTELSTOCK_URL` at the Vercel production
+   URL — the same workflow drives scheduling unchanged; that is what the
+   host-independent cron design was for.
 
 ## Later: splitting the frontend to Vercel
 

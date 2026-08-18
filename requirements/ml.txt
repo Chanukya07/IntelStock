@@ -1,0 +1,8 @@
+# Optional local semantic-search stack (~2GB installed: torch + model weights).
+#
+# Not part of the default install: backend/rag/embeddings.py lazy-loads the
+# model and degrades to no-context retrieval when it is absent, and serverless
+# hosts cannot fit it inside their bundle limit anyway (Vercel Python: 500MB).
+# Install on a persistent host with room to spare:
+#     pip install -r requirements/ml.txt
+sentence-transformers>=2.2.0

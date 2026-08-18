@@ -7,8 +7,12 @@ from backend.rag.chunking import chunk_news_articles
 
 
 class RAGRetriever:
-    def __init__(self, vectorstore_path: str = "vectorstore") -> None:
-        """Initialize RAG retriever with vector store."""
+    def __init__(self, vectorstore_path: str | None = None) -> None:
+        """Initialize RAG retriever with vector store.
+
+        None lets VectorStore resolve the path itself (env override, /tmp on
+        serverless), rather than pinning the repo-local default here.
+        """
         self.vectorstore = VectorStore(vectorstore_path)
 
     def index_news(self, headlines: list[str], symbol: str = "") -> None:

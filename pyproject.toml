@@ -1,0 +1,6 @@
+# Vercel's FastAPI builder needs the ASGI entrypoint named explicitly because
+# the app lives in backend/main.py rather than one of the default locations
+# it probes (main.py, app.py, index.py at the repo root).
+# https://vercel.com/docs/frameworks/backend/fastapi#exporting-the-fastapi-application
+[tool.vercel]
+entrypoint = "backend.main:app"
